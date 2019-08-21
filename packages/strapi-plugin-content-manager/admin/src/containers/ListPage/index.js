@@ -171,7 +171,7 @@ export class ListPage extends React.Component {
     };
     const attributes = Object.assign(
       { [primaryKey]: defaultAttr },
-      get(this.getCurrentModel(), ['attributes'], {}),
+      get(this.getCurrentModel(), ['attributes'], {})
     );
 
     return attributes;
@@ -270,7 +270,7 @@ export class ListPage extends React.Component {
     } = this.props;
 
     return `?${generateSearchFromParams(
-      params,
+      params
     )}&source=${this.getSource()}${generateSearchFromFilters(filters)}`;
   };
 
@@ -316,7 +316,7 @@ export class ListPage extends React.Component {
     if (attrIndex !== -1) {
       if (get(this.props.listPage, 'displayedFields', []).length === 1) {
         strapi.notification.error(
-          'content-manager.notification.error.displayedFields',
+          'content-manager.notification.error.displayedFields'
         );
       } else {
         const isRemovingDefaultSort =
@@ -395,7 +395,7 @@ export class ListPage extends React.Component {
       search: `?_page=${params._page}&_limit=${
         params._limit
       }&_sort=${sort}${_q}&source=${this.getSource()}${generateSearchFromFilters(
-        filters,
+        filters
       )}`,
     });
 
@@ -409,7 +409,7 @@ export class ListPage extends React.Component {
       this.state.target,
       this.getCurrentModelName(),
       this.getSource(),
-      this.context,
+      this.context
     );
     this.setState({ showWarning: false });
   };
@@ -417,7 +417,7 @@ export class ListPage extends React.Component {
   handleResetDisplayedFields = () => {
     storeData.clear(this.getCurrentModelName());
     this.props.resetDisplayedFields(
-      get(this.getCurrentModel(), ['listDisplay'], []),
+      get(this.getCurrentModel(), ['listDisplay'], [])
     );
   };
 
@@ -455,13 +455,14 @@ export class ListPage extends React.Component {
   showSearch = () => get(this.getCurrentModel(), ['search']);
 
   showFilters = () => {
-    if (
-      isEmpty(get(this.getCurrentModel(), ['editDisplay', 'availableFields']))
-    ) {
-      return false;
-    }
-
-    return get(this.getCurrentModel(), ['filters']);
+    return false;
+    // if (
+    //   isEmpty(get(this.getCurrentModel(), ['editDisplay', 'availableFields']))
+    // ) {
+    //   return false;
+    // }
+    //
+    // return get(this.getCurrentModel(), ['filters']);
   };
 
   showBulkActions = () => get(this.getCurrentModel(), ['bulkActions']);
@@ -595,7 +596,7 @@ export class ListPage extends React.Component {
           deleteSeveralData(
             entriesToDelete,
             this.getCurrentModelName(),
-            this.getSource(),
+            this.getSource()
           );
         }}
       />
@@ -679,7 +680,7 @@ export class ListPage extends React.Component {
                         isOpen
                           ? styles.listPageDropdownWrapperOpen
                           : styles.listPageDropdownWrapperClose,
-                        styles.listPageDropdownWrapper,
+                        styles.listPageDropdownWrapper
                       )}
                     >
                       <ButtonDropdown
@@ -809,7 +810,7 @@ function mapDispatchToProps(dispatch) {
       setParams,
       submit,
     },
-    dispatch,
+    dispatch
   );
 }
 
@@ -820,7 +821,7 @@ const mapStateToProps = createStructuredSelector({
 
 const withConnect = connect(
   mapStateToProps,
-  mapDispatchToProps,
+  mapDispatchToProps
 );
 
 const withReducer = strapi.injectReducer({
@@ -833,5 +834,5 @@ const withSaga = strapi.injectSaga({ key: 'listPage', saga, pluginId });
 export default compose(
   withReducer,
   withSaga,
-  withConnect,
+  withConnect
 )(ListPage);
