@@ -1,3 +1,4 @@
+import fa from './fa.json'
 import ar from './ar.json';
 import de from './de.json';
 import en from './en.json';
@@ -16,6 +17,7 @@ import zhHans from './zh-Hans.json';
 import zh from './zh.json';
 
 const trads = {
+  fa,
   ar,
   de,
   en,

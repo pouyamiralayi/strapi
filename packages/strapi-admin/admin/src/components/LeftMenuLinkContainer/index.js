@@ -40,6 +40,7 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
 
   const linkSections = Object.keys(pluginsSections).map((current, j) => {
     const contentTypes = pluginsSections[current].links;
+    if(pluginsSections[current].name === 'Users') return
 
     return (
       <div key={j}>
@@ -63,6 +64,11 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
   // Check if the plugins list is empty or not and display plugins by name
   const pluginsLinks = !isEmpty(plugins) ? (
     map(sortBy(plugins, 'name'), plugin => {
+      if(plugin.name === 'Content Manager') return
+      else if(plugin.name === 'Content Type Builder') return
+      else if(plugin.name === 'Documentation') return
+      else if(plugin.name === 'Files Upload') return
+      else if(plugin.name === 'Roles & Permissions') return
       if (plugin.id !== 'email' && plugin.id !== 'settings-manager') {
         const basePath = `/plugins/${get(plugin, 'id')}`;
         // NOTE: this should be dynamic
@@ -76,6 +82,7 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
             {...rest}
             key={get(plugin, 'id')}
             icon={get(plugin, 'icon') || 'plug'}
+            // label={get(plugin, 'name')+' @@%%'}
             label={get(plugin, 'name')}
             destination={destination}
           />
@@ -90,43 +97,29 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
 
   const hasSettingsManager = get(plugins, 'settings-manager', null);
   const staticLinks = [
-    {
-      icon: 'list',
-      label: messages.listPlugins.id,
-      destination: '/list-plugins',
-    },
-    {
-      icon: 'shopping-basket',
-      label: messages.installNewPlugin.id,
-      destination: '/marketplace',
-    },
+    // {
+    //   icon: 'list',
+    //   label: messages.listPlugins.id,
+    //   destination: '/list-plugins',
+    // },
+    // {
+    //   icon: 'shopping-basket',
+    //   label: messages.installNewPlugin.id,
+    //   destination: '/marketplace',
+    // },
   ];
 
   return (
     <div className={styles.leftMenuLinkContainer}>
       {linkSections}
       <div>
-        <p className={styles.title}>
-          <FormattedMessage {...messages.plugins} />
-        </p>
         <ul className={styles.list}>{pluginsLinks}</ul>
       </div>
       <div>
-        <p className={styles.title}>
-          <FormattedMessage {...messages.general} />
-        </p>
         <ul className={styles.list}>
           {staticLinks.map(link => (
             <LeftMenuLink {...rest} key={link.destination} {...link} />
           ))}
-          {hasSettingsManager && (
-            <LeftMenuLink
-              {...rest}
-              icon="gear"
-              label={messages.configuration.id}
-              destination="/plugins/settings-manager"
-            />
-          )}
         </ul>
       </div>
     </div>

@@ -10,7 +10,7 @@ import styles from './styles.scss';
 
 function SupportUsTitle() {
   return (
-    <FormattedMessage id="app.components.HomePage.support">
+    <FormattedMessage id="تبلیفات برند">
       {message => <span className={styles.supportUsTitle}>{message}</span>}
     </FormattedMessage>
   );

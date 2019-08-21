@@ -10,10 +10,10 @@ import styles from './styles.scss';
 
 function SupportUsCta() {
   return (
-    <FormattedMessage id="app.components.HomePage.support.link">
+    <FormattedMessage id="ورود به وبسایت برند">
       {message => (
         <a
-          href="https://strapi.io/shop"
+          href=""
           target="_blank"
           className={styles.supportUsCta}
           rel="noopener noreferrer"

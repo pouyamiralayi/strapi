@@ -13,7 +13,7 @@ import styles from './styles.scss';
 function CommunityContent() {
   return (
     <React.Fragment>
-      <FormattedMessage id="app.components.HomePage.community.content">
+      <FormattedMessage id="با استفاده از سیستم کنترل خطای هوشمند گیت هاب، از پشتیبانی 24 ساعته برای این پروژه بهره مند شوید">
         {message => (
           <p className={styles.communityContentP}>
             {message}

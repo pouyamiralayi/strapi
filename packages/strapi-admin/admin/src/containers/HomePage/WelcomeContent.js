@@ -15,38 +15,8 @@ function WelcomeContent({ hasContent }) {
   return (
     <React.Fragment>
       <div className={styles.iconWave}>👋</div>
-      {!hasContent && (
-        <FormattedMessage id="app.components.HomePage.welcomeBlock.content">
-          {message => (
-            <p className={styles.welcomeContentP}>
-              {message}
-              <a
-                className={styles.welcomeContentA}
-                href="https://slack.strapi.io/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Slack
-              </a>
-              <FormattedMessage id="app.components.HomePage.welcomeBlock.content.raise" />
-              <FormattedMessage id="app.components.HomePage.welcomeBlock.content.issues">
-                {message => (
-                  <a
-                    className={styles.welcomeContentA}
-                    href="https://github.com/strapi/strapi/issues/new/choose"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {message}
-                  </a>
-                )}
-              </FormattedMessage>
-            </p>
-          )}
-        </FormattedMessage>
-      )}
       {hasContent && (
-        <FormattedMessage id="app.components.HomePage.welcomeBlock.content.again">
+        <FormattedMessage id="ورود شما را به داشبور اکسل خوش آمد میگویم. با استفاده از امکانات این داشبورد شما قادر خواهید بود به آسانی محتوای اکسل خود را بارگذاری و در معرض استفادۀ کاربران قرار دهید. در ادامۀ با امکاناتی از قبیل بارگذاری فایل، تعریف مشتری و ارتباط فایل ها با مشتری شما را آشنا خواهم کرد">
           {message => <p className={styles.welcomeContentP}>{message}</p>}
         </FormattedMessage>
       )}

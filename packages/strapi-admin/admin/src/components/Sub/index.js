@@ -37,13 +37,13 @@ function Sub({ bordered, content, link, name, style, title, underline }) {
         bordered && styles.subBordered,
         styles.link
       )}
-      href={`https://blog.strapi.io/${link}`}
+      href={``}
       target="_blank"
       rel="noopener noreferrer"
     >
       <span>{title}</span>
       {title === '' && <LoadingBar />}
-      {content === '' && <LoadingBar style={{ width: '40%' }} />}
+      {<LoadingBar style={{ width: '40%' }} />}
       <p style={style}>{isFunction(content) ? content() : content}</p>
     </a>
   );
