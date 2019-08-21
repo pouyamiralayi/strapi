@@ -45,7 +45,7 @@ import styles from './styles.scss';
 
 const FIRST_BLOCK = [
   {
-    content: () => <WelcomeContent hasContent/>,
+    content: () => <WelcomeContent hasContent />,
   },
   // {
   //   title: {
@@ -79,9 +79,6 @@ const FIRST_BLOCK_LINKS = [
 ];
 
 const SECOND_BLOCK = {
-  title: {
-    id: 'با من در ارتباط باشید',
-  },
   content: () => <CommunityContent />,
 };
 
@@ -186,15 +183,14 @@ export class HomePage extends React.PureComponent {
         <div className="row">
           <div className="col-md-8 col-lg-8">
             <Block>
-              {
-                FIRST_BLOCK.map((value, key) => (
-                  <Sub
-                    key={key}
-                    {...value}
-                    underline={key === 0}
-                    bordered={key === 0}
-                  />
-                ))}
+              {FIRST_BLOCK.map((value, key) => (
+                <Sub
+                  key={key}
+                  {...value}
+                  underline={key === 0}
+                  bordered={key === 0}
+                />
+              ))}
             </Block>
             <Block>
               <Sub {...SECOND_BLOCK} />

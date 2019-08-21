@@ -29,7 +29,7 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
                 : plugins[current].id;
 
               return link;
-            }),
+            })
           ),
         };
       }
@@ -40,22 +40,29 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
 
   const linkSections = Object.keys(pluginsSections).map((current, j) => {
     const contentTypes = pluginsSections[current].links;
-    if(pluginsSections[current].name === 'Users') return
 
     return (
       <div key={j}>
-        <p className={styles.title}>{pluginsSections[current].name}</p>
+        {/*FIXME DEBUG links*/}
+        {/*<p className={styles.title}>{contentTypes.map((link,i) => {return(<span key={i}>{link.plugin +" -> " +link.destination}</span>)})}</p>*/}
+        {/*<p className={styles.title}>{"مدل ها"}</p>*/}
+        {/*<p className={styles.title}>{pluginsSections[current].name}</p>*/}
         <ul className={styles.list}>
-          {sortBy(contentTypes, 'label').map((link, i) => (
-            <LeftMenuLink
-              {...rest}
-              key={`${i}-${link.label}`}
-              icon={link.icon || 'caret-right'}
-              label={link.label}
-              destination={`/plugins/${link.plugin}/${link.destination}`}
-              source={link.source}
-            />
-          ))}
+          {sortBy(contentTypes, 'label').map((link, i) => {
+            if (link.label !== 'Users') {
+              return (
+                <LeftMenuLink
+                  {...rest}
+                  key={`${i}-${link.label}`}
+                  icon={link.icon || 'caret-right'}
+                  label={link.label}
+                  destination={`/plugins/${link.plugin}/${link.destination}`}
+                  source={link.source}
+                />
+              );
+            }
+            return null;
+          })}
         </ul>
       </div>
     );
@@ -64,11 +71,11 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
   // Check if the plugins list is empty or not and display plugins by name
   const pluginsLinks = !isEmpty(plugins) ? (
     map(sortBy(plugins, 'name'), plugin => {
-      if(plugin.name === 'Content Manager') return
-      else if(plugin.name === 'Content Type Builder') return
-      else if(plugin.name === 'Documentation') return
-      else if(plugin.name === 'Files Upload') return
-      else if(plugin.name === 'Roles & Permissions') return
+      if (plugin.name === 'Content Manager') return;
+      else if (plugin.name === 'Content Type Builder') return;
+      else if (plugin.name === 'Documentation') return;
+      else if (plugin.name === 'Files Upload') return;
+      else if (plugin.name === 'Roles & Permissions') return;
       if (plugin.id !== 'email' && plugin.id !== 'settings-manager') {
         const basePath = `/plugins/${get(plugin, 'id')}`;
         // NOTE: this should be dynamic
@@ -95,7 +102,6 @@ function LeftMenuLinkContainer({ plugins, ...rest }) {
     </li>
   );
 
-  const hasSettingsManager = get(plugins, 'settings-manager', null);
   const staticLinks = [
     // {
     //   icon: 'list',

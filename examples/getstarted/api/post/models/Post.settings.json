@@ -8,11 +8,5 @@
   "options": {
     "timestamps": true
   },
-  "attributes": {
-    "articles": {
-      "collection": "articles",
-      "dominant": true,
-      "via": "posts"
-    }
-  }
+  "attributes": {}
 }

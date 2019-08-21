@@ -14,15 +14,17 @@ import { LoadingBar } from 'strapi-helper-plugin';
 import styles from './styles.scss';
 
 function Sub({ bordered, content, link, name, style, title, underline }) {
+  if (link) {
+  }
   if (isObject(title)) {
     return (
       <div className={cn(styles.subWrapper, bordered && styles.subBordered)}>
         <FormattedMessage {...title}>
           {message => (
-            <span className={cn(underline && styles.underlinedTitle)}>
+            <p className={cn(underline && styles.underlinedTitle)}>
               {message}
               {name}
-            </span>
+            </p>
           )}
         </FormattedMessage>
         {content()}
