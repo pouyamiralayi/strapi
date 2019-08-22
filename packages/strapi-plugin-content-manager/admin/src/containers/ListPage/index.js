@@ -701,6 +701,8 @@ export class ListPage extends React.Component {
                 </div>
               </React.Fragment>
             )}
+            {/*<FormattedMessage id={ "تعداد نویسه"+get(count, this.getCurrentModelName(), 0)}></FormattedMessage>*/}
+
             <div className={cn('row', styles.row)}>
               <div className="col-md-12">
                 <Table
@@ -738,13 +740,14 @@ export class ListPage extends React.Component {
                   onConfirm={this.handleDelete}
                 />
                 {this.renderPopUpWarningDeleteAll()}
-                <PageFooter
-                  context={this.context}
-                  count={get(count, this.getCurrentModelName(), 0)}
-                  onChangeParams={this.handleChangeParams}
-                  params={listPage.params}
-                  style={{ marginTop: '2.9rem', padding: '0 15px 0 15px' }}
-                />
+                {/*<FormattedMessage id={get(count, this.getCurrentModelName(), 0)+""}></FormattedMessage>*/}
+                {/*<PageFooter*/}
+                  {/*context={this.context}*/}
+                  {/*count={get(count, this.getCurrentModelName(), 0)}*/}
+                  {/*onChangeParams={this.handleChangeParams}*/}
+                  {/*params={listPage.params}*/}
+                  {/*style={{ marginTop: '2.9rem', padding: '0 15px 0 15px' }}*/}
+                {/*/>*/}
               </div>
             </div>
           </div>
