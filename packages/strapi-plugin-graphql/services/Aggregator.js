@@ -7,6 +7,8 @@
 const _ = require('lodash');
 const pluralize = require('pluralize');
 const { convertRestQueryParams, buildQuery } = require('strapi-utils');
+const policyUtils = require('strapi-utils').policy;
+const compose = require('koa-compose');
 
 const Schema = require('./Schema.js');
 const GraphQLQuery = require('./Query.js');
@@ -143,8 +145,8 @@ const extractType = function(_type, attributeType) {
   return isPrimitiveType(_type)
     ? _type.replace('!', '')
     : isEnumType(attributeType)
-      ? 'String'
-      : 'ID';
+    ? 'String'
+    : 'ID';
 };
 
 /**
@@ -169,11 +171,20 @@ const extractType = function(_type, attributeType) {
  *   age: function ageResolver() { .... }
  * }
  */
-const createAggregationFieldsResolver = function(model, fields, operation, typeCheck) {
+const createAggregationFieldsResolver = function(
+  model,
+  fields,
+  operation,
+  typeCheck
+) {
   return createFieldsResolver(
     fields,
-    async (filters, options, context, fieldResolver, fieldKey) => {
-      // eslint-disable-line no-unused-vars
+    async (obj, options, context, fieldResolver, fieldKey) => {
+      const filters = convertRestQueryParams({
+        ...GraphQLQuery.convertToParams(_.omit(obj, 'where')),
+        ...GraphQLQuery.convertToQuery(obj.where),
+      });
+
       return buildQuery({ model, filters, aggregate: true })
         .group({
           _id: null,
@@ -194,7 +205,16 @@ const preProcessGroupByData = function({ result, fieldKey, filters, model }) {
   return _.map(_result, value => {
     return {
       key: value._id,
-      connection: () => filters,
+      connection: () => {
+        // filter by the grouped by value in next connection
+        return {
+          ...filters,
+          where: {
+            ...(filters.where || {}),
+            [fieldKey]: value._id,
+          },
+        };
+      },
     };
   });
 };
@@ -219,7 +239,13 @@ const preProcessGroupByData = function({ result, fieldKey, filters, model }) {
  * }
  */
 const createGroupByFieldsResolver = function(model, fields, name) {
-  const resolver = async (filters, options, context, fieldResolver, fieldKey) => {
+  const resolver = async (
+    filters,
+    options,
+    context,
+    fieldResolver,
+    fieldKey
+  ) => {
     const params = {
       ...GraphQLQuery.convertToParams(_.omit(filters, 'where')),
       ...GraphQLQuery.convertToQuery(filters.where),
@@ -250,8 +276,10 @@ const createGroupByFieldsResolver = function(model, fields, name) {
  */
 const generateConnectionFieldsTypes = function(fields, model) {
   const { globalId, attributes } = model;
-  const primitiveFields = getFieldsByTypes(fields, isNotOfTypeArray, (type, name) =>
-    extractType(type, (attributes[name] || {}).type)
+  const primitiveFields = getFieldsByTypes(
+    fields,
+    isNotOfTypeArray,
+    (type, name) => extractType(type, (attributes[name] || {}).type)
   );
 
   const connectionFields = _.mapValues(primitiveFields, fieldType => ({
@@ -262,9 +290,9 @@ const generateConnectionFieldsTypes = function(fields, model) {
   return Object.keys(primitiveFields)
     .map(
       fieldKey =>
-        `type ${globalId}Connection${_.upperFirst(fieldKey)} {${Schema.formatGQL(
-          connectionFields[fieldKey]
-        )}}`
+        `type ${globalId}Connection${_.upperFirst(
+          fieldKey
+        )} {${Schema.formatGQL(connectionFields[fieldKey])}}`
     )
     .join('\n\n');
 };
@@ -277,23 +305,30 @@ const formatConnectionGroupBy = function(fields, model, name) {
   const groupByFields = getFieldsByTypes(
     fields,
     isNotOfTypeArray,
-    (fieldType, fieldName) => `[${globalId}Connection${_.upperFirst(fieldName)}]`
+    (fieldType, fieldName) =>
+      `[${globalId}Connection${_.upperFirst(fieldName)}]`
   );
 
   // Get the generated field types
-  let groupByTypes = `type ${groupByGlobalId} {${Schema.formatGQL(groupByFields)}}\n\n`;
+  let groupByTypes = `type ${groupByGlobalId} {${Schema.formatGQL(
+    groupByFields
+  )}}\n\n`;
   groupByTypes += generateConnectionFieldsTypes(fields, model);
 
   return {
     globalId: groupByGlobalId,
     type: groupByTypes,
     resolver: {
-      [groupByGlobalId]: createGroupByFieldsResolver(model, groupByFields, name),
+      [groupByGlobalId]: createGroupByFieldsResolver(
+        model,
+        groupByFields,
+        name
+      ),
     },
   };
 };
 
-const formatConnectionAggregator = function(fields, model) {
+const formatConnectionAggregator = function(fields, model, modelName) {
   const { globalId } = model;
 
   // Extract all fields of type Integer and Float and change their type to Float
@@ -314,26 +349,23 @@ const formatConnectionAggregator = function(fields, model) {
   }
 
   const gqlNumberFormat = Schema.formatGQL(numericFields);
-  let aggregatorTypes = `type ${aggregatorGlobalId} {${Schema.formatGQL(initialFields)}}\n\n`;
+  let aggregatorTypes = `type ${aggregatorGlobalId} {${Schema.formatGQL(
+    initialFields
+  )}}\n\n`;
 
   let resolvers = {
     [aggregatorGlobalId]: {
-      count: async (obj, options, context) => {
-        return buildQuery({
-          model,
-          filters: {
-            limit: obj.limit,
-            where: obj.where,
-          },
-        }).count();
+      count(obj, options, context) {
+        const opts = GraphQLQuery.convertToQuery(obj.where);
+
+        if (opts._q) {
+          // allow search param
+          return strapi.query(modelName, model.plugin).countSearch(opts);
+        }
+        return strapi.query(modelName, model.plugin).count(opts);
       },
-      totalCount: async (obj, options, context) => {
-        return buildQuery({
-          model,
-          filters: {
-            where: obj.where,
-          },
-        }).count();
+      totalCount(obj, options, context) {
+        return strapi.query(modelName, model.plugin).count({});
       },
     },
   };
@@ -440,7 +472,13 @@ const formatConnectionAggregator = function(fields, model) {
  *  }
  *
  */
-const formatModelConnectionsGQL = function(fields, model, name, modelResolver) {
+const formatModelConnectionsGQL = function(
+  fields,
+  model,
+  name,
+  modelResolver,
+  plugin
+) {
   const { globalId } = model;
 
   const connectionGlobalId = `${globalId}Connection`;
@@ -451,7 +489,7 @@ const formatModelConnectionsGQL = function(fields, model, name, modelResolver) {
     groupBy: `${globalId}GroupBy`,
     aggregate: `${globalId}Aggregator`,
   };
-  const pluralName = pluralize.plural(name);
+  const pluralName = pluralize.plural(_.camelCase(name));
 
   let modelConnectionTypes = `type ${connectionGlobalId} {${Schema.formatGQL(
     connectionFields
@@ -471,7 +509,47 @@ const formatModelConnectionsGQL = function(fields, model, name, modelResolver) {
     },
     resolver: {
       Query: {
-        [`${pluralName}Connection`](obj, options, context) {
+        async [`${pluralName}Connection`](obj, options, { context }) {
+          // need to check
+
+          const ctx = Object.assign(_.clone(context), {
+            request: Object.assign(_.clone(context.request), {
+              graphql: null,
+            }),
+          });
+
+          const policiesFn = [
+            policyUtils.globalPolicy({
+              controller: name,
+              action: 'find',
+              plugin,
+            }),
+          ];
+
+          policyUtils.get(
+            'plugins.users-permissions.permissions',
+            plugin,
+            policiesFn,
+            `GraphQL connection "${name}" `,
+            name
+          );
+
+          // Execute policies stack.
+          const policy = await compose(policiesFn)(ctx);
+
+          // Policy doesn't always return errors but they update the current context.
+          if (
+            _.isError(ctx.request.graphql) ||
+            _.get(ctx.request.graphql, 'isBoom')
+          ) {
+            return ctx.request.graphql;
+          }
+
+          // Something went wrong in the policy.
+          if (policy) {
+            return policy;
+          }
+
           return options;
         },
       },
@@ -483,12 +561,7 @@ const formatModelConnectionsGQL = function(fields, model, name, modelResolver) {
           return obj;
         },
         aggregate(obj, options, context) {
-          const params = {
-            ...GraphQLQuery.convertToParams(_.omit(obj, 'where')),
-            ...GraphQLQuery.convertToQuery(obj.where),
-          };
-
-          return convertRestQueryParams(params);
+          return obj;
         },
       },
       ...aggregatorFormat.resolver,

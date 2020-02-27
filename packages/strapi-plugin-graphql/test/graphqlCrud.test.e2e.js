@@ -8,30 +8,17 @@ let graphqlQuery;
 let modelsUtils;
 
 const postModel = {
-  attributes: [
-    {
-      name: 'name',
-      params: {
-        appearance: {
-          WYSIWYG: false,
-        },
-        multiple: false,
-        type: 'string',
-      },
+  attributes: {
+    name: {
+      type: 'richtext',
     },
-    {
-      name: 'bigint',
-      params: {
-        type: 'biginteger',
-      },
+    bigint: {
+      type: 'biginteger',
     },
-    {
-      name: 'nullable',
-      params: {
-        type: 'string',
-      },
+    nullable: {
+      type: 'string',
     },
-  ],
+  },
   connection: 'default',
   name: 'post',
   description: '',
@@ -53,10 +40,10 @@ describe('Test Graphql API End to End', () => {
 
     modelsUtils = createModelsUtils({ rq });
 
-    await modelsUtils.createModels([postModel]);
+    await modelsUtils.createContentTypes([postModel]);
   }, 60000);
 
-  afterAll(() => modelsUtils.deleteModels(['post']), 60000);
+  afterAll(() => modelsUtils.deleteContentTypes(['post']), 60000);
 
   describe('Test CRUD', () => {
     const postsPayload = [
@@ -290,7 +277,9 @@ describe('Test Graphql API End to End', () => {
 
       // all expected values are in the result
       expected.forEach(expectedPost => {
-        expect(res.body.data.posts).toEqual(expect.arrayContaining([expectedPost]));
+        expect(res.body.data.posts).toEqual(
+          expect.arrayContaining([expectedPost])
+        );
       });
     });
 
@@ -366,6 +355,7 @@ describe('Test Graphql API End to End', () => {
             mutation deletePost($input: deletePostInput) {
               deletePost(input: $input) {
                 post {
+                  id
                   name
                   bigint
                 }
@@ -382,6 +372,15 @@ describe('Test Graphql API End to End', () => {
         });
 
         expect(res.statusCode).toBe(200);
+        expect(res.body).toMatchObject({
+          data: {
+            deletePost: {
+              post: {
+                id: post.id,
+              },
+            },
+          },
+        });
       }
     });
   });

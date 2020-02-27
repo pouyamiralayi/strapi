@@ -12,44 +12,26 @@ let data = {
 
 // complete list of existing fields and tests
 const product = {
-  attributes: [
-    {
-      name: 'name',
-      params: {
-        type: 'string',
-      },
+  attributes: {
+    name: {
+      type: 'string',
     },
-    {
-      name: 'description',
-      params: {
-        type: 'text',
-      },
+    description: {
+      type: 'text',
     },
-    {
-      name: 'price',
-      params: {
-        type: 'float',
-      },
+    price: {
+      type: 'float',
     },
-    {
-      name: 'decimal_field',
-      params: {
-        type: 'decimal',
-      },
+    decimal_field: {
+      type: 'decimal',
     },
-    {
-      name: 'rank',
-      params: {
-        type: 'integer',
-      },
+    rank: {
+      type: 'integer',
     },
-    {
-      name: 'big_rank',
-      params: {
-        type: 'biginteger',
-      },
+    big_rank: {
+      type: 'biginteger',
     },
-  ],
+  },
   connection: 'default',
   name: 'product',
   description: '',
@@ -63,7 +45,7 @@ const productFixtures = [
     price: 10.99,
     decimal_field: 42.43,
     rank: 42,
-    big_rank: 345678912983,
+    big_rank: '345678912983',
   },
   {
     name: 'Product 2',
@@ -71,7 +53,7 @@ const productFixtures = [
     price: 28.31,
     decimal_field: 91.22,
     rank: 82,
-    big_rank: 926371623421,
+    big_rank: '926371623421',
   },
   {
     name: 'Product 3',
@@ -79,7 +61,7 @@ const productFixtures = [
     price: 28.31,
     decimal_field: 12.22,
     rank: 91,
-    big_rank: 926372323421,
+    big_rank: '926372323421',
   },
   {
     name: 'Product 4',
@@ -87,7 +69,15 @@ const productFixtures = [
     price: null,
     decimal_field: 12.22,
     rank: 99,
-    big_rank: 999999999999,
+    big_rank: '999999999999',
+  },
+  {
+    name: 'Продукт 5, Product 5',
+    description: 'Опис на продукт 5',
+    price: null,
+    decimal_field: 142.43,
+    rank: 142,
+    big_rank: 345678912983,
   },
 ];
 
@@ -118,13 +108,13 @@ describe('Filtering API', () => {
     rq = createAuthRequest(token);
 
     modelsUtils = createModelsUtils({ rq });
-    await modelsUtils.createModels([product]);
+    await modelsUtils.createContentTypes([product]);
     await createFixtures();
   }, 60000);
 
   afterAll(async () => {
     await deleteFixtures();
-    await modelsUtils.deleteModels(['product']);
+    await modelsUtils.deleteContentTypes(['product']);
   }, 60000);
 
   describe('Basic filters', () => {
@@ -203,7 +193,7 @@ describe('Filtering API', () => {
     });
 
     describe('Filter null', () => {
-      test('Should return only one match', async () => {
+      test('Should return only matching items', async () => {
         const res = await rq({
           method: 'GET',
           url: '/products',
@@ -212,9 +202,12 @@ describe('Filtering API', () => {
           },
         });
 
+        const matching = data.products.filter(x => x.price === null);
+        res.body.sort((a, b) => (a.id > b.id ? 1 : -1));
         expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.length).toBe(1);
-        expect(res.body[0]).toMatchObject(data.products[3]);
+        expect(res.body.length).toBe(matching.length);
+        expect(res.body).toMatchObject(matching);
+        expect(res.body).toEqual(expect.arrayContaining(matching));
       });
 
       test('Should return three matches', async () => {
@@ -605,7 +598,7 @@ describe('Filtering API', () => {
           method: 'GET',
           url: '/products',
           qs: {
-            big_rank_gte: 345678912983,
+            big_rank_gte: '345678912983',
           },
         });
 
@@ -753,7 +746,7 @@ describe('Filtering API', () => {
           method: 'GET',
           url: '/products',
           qs: {
-            big_rank_lte: 345678912983,
+            big_rank_lte: '345678912983',
           },
         });
 
@@ -983,7 +976,9 @@ describe('Filtering API', () => {
       });
 
       expect(res.body).toEqual(
-        data.products.slice(0).sort((a, b) => a.rank - b.rank)
+        expect.arrayContaining(
+          data.products.slice(0).sort((a, b) => a.rank - b.rank)
+        )
       );
     });
 
@@ -997,7 +992,9 @@ describe('Filtering API', () => {
       });
 
       expect(res.body).toEqual(
-        data.products.slice(0).sort((a, b) => a.rank - b.rank)
+        expect.arrayContaining(
+          data.products.slice(0).sort((a, b) => a.rank - b.rank)
+        )
       );
 
       const res2 = await rq({
@@ -1009,7 +1006,9 @@ describe('Filtering API', () => {
       });
 
       expect(res2.body).toEqual(
-        data.products.slice(0).sort((a, b) => b.rank - a.rank)
+        expect.arrayContaining(
+          data.products.slice(0).sort((a, b) => b.rank - a.rank)
+        )
       );
     });
 
@@ -1043,7 +1042,7 @@ describe('Filtering API', () => {
         },
       });
 
-      expect(res.body).toEqual([data.products[0]]);
+      expect(res.body).toEqual(expect.arrayContaining([data.products[0]]));
     });
 
     test('Limit with sorting', async () => {
@@ -1056,7 +1055,9 @@ describe('Filtering API', () => {
         },
       });
 
-      expect(res.body).toEqual([data.products[data.products.length - 1]]);
+      expect(res.body).toEqual(
+        expect.arrayContaining([data.products[data.products.length - 1]])
+      );
     });
 
     test('Offset', async () => {
@@ -1068,7 +1069,7 @@ describe('Filtering API', () => {
         },
       });
 
-      expect(res.body).toEqual(data.products.slice(1));
+      expect(res.body).toEqual(expect.arrayContaining(data.products.slice(1)));
     });
 
     test('Offset with limit', async () => {
@@ -1081,7 +1082,47 @@ describe('Filtering API', () => {
         },
       });
 
-      expect(res.body).toEqual(data.products.slice(1, 2));
+      expect(res.body).toEqual(
+        expect.arrayContaining(data.products.slice(1, 2))
+      );
+    });
+  });
+
+  describe('Text query', () => {
+    test('Cyrillic query', async () => {
+      const res = await rq({
+        method: 'GET',
+        url: '/products',
+        qs: {
+          _q: 'Опис',
+        },
+      });
+
+      expect(res.body).toEqual(expect.arrayContaining([data.products[4]]));
+    });
+
+    test('Multi word query', async () => {
+      const res = await rq({
+        method: 'GET',
+        url: '/products',
+        qs: {
+          _q: 'Product description',
+        },
+      });
+
+      expect(res.body).toEqual(expect.arrayContaining([data.products[0]]));
+    });
+
+    test('Multi word cyrillic query', async () => {
+      const res = await rq({
+        method: 'GET',
+        url: '/products',
+        qs: {
+          _q: 'Опис на продукт',
+        },
+      });
+
+      expect(res.body).toEqual(expect.arrayContaining([data.products[4]]));
     });
   });
 });

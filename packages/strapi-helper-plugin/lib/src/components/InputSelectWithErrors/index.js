@@ -14,14 +14,15 @@ import Label from '../Label';
 import InputDescription from '../InputDescription';
 import InputErrors from '../InputErrors';
 import InputSelect from '../InputSelect';
-
-import styles  from './styles.scss';
+import InputSpacer from '../InputSpacer';
+import InputWrapper from '../InputWrapper';
 
 class InputSelectWithErrors extends React.Component {
   state = { errors: [] };
 
   componentDidMount() {
     const { errors } = this.props;
+
     // Display input error if it already has some
     if (!isEmpty(errors)) {
       this.setState({ errors });
@@ -31,13 +32,15 @@ class InputSelectWithErrors extends React.Component {
       const target = {
         type: 'select',
         name: this.props.name,
-        value: get(this.props.selectOptions, ['0', 'value']) || get(this.props.selectOptions, ['0']),
+        value:
+          get(this.props.selectOptions, ['0', 'value']) ||
+          get(this.props.selectOptions, ['0']),
       };
       this.props.onChange({ target });
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     // Check if errors have been updated during validations
     if (nextProps.didCheckErrors !== this.props.didCheckErrors) {
       // Remove from the state the errors that have already been set
@@ -50,7 +53,7 @@ class InputSelectWithErrors extends React.Component {
     if (!isEmpty(target.value)) {
       this.setState({ errors: [] });
     }
-  }
+  };
 
   render() {
     const {
@@ -70,6 +73,7 @@ class InputSelectWithErrors extends React.Component {
       labelClassName,
       labelStyle,
       name,
+      noErrorsDescription,
       onBlur,
       onChange,
       onFocus,
@@ -77,15 +81,18 @@ class InputSelectWithErrors extends React.Component {
       style,
       tabIndex,
       value,
+      withOptionPlaceholder,
     } = this.props;
 
+    let spacer = !isEmpty(inputDescription) ? <InputSpacer /> : <div />;
+
+    if (!noErrorsDescription && !isEmpty(this.state.errors)) {
+      spacer = <div />;
+    }
+
     return (
-      <div
-        className={cn(
-          styles.containerSelect,
-          customBootstrapClass,
-          !isEmpty(className) && className,
-        )}
+      <InputWrapper
+        className={cn(customBootstrapClass, !isEmpty(className) && className)}
         style={style}
       >
         <Label
@@ -108,6 +115,7 @@ class InputSelectWithErrors extends React.Component {
           style={inputStyle}
           tabIndex={tabIndex}
           value={value}
+          withOptionPlaceholder={withOptionPlaceholder}
         />
         <InputDescription
           className={inputDescriptionClassName}
@@ -120,7 +128,8 @@ class InputSelectWithErrors extends React.Component {
           name={name}
           style={errorsStyle}
         />
-      </div>
+        {spacer}
+      </InputWrapper>
     );
   }
 }
@@ -144,11 +153,13 @@ InputSelectWithErrors.defaultProps = {
   labelClassName: '',
   labelStyle: {},
   onBlur: false,
+  noErrorsDescription: false,
   onFocus: () => {},
   selectOptions: [],
   style: {},
   tabIndex: '0',
   validations: {},
+  withOptionPlaceholder: false,
 };
 
 InputSelectWithErrors.propTypes = {
@@ -184,10 +195,8 @@ InputSelectWithErrors.propTypes = {
   labelClassName: PropTypes.string,
   labelStyle: PropTypes.object,
   name: PropTypes.string.isRequired,
-  onBlur: PropTypes.oneOfType([
-    PropTypes.bool,
-    PropTypes.func,
-  ]),
+  noErrorsDescription: PropTypes.bool,
+  onBlur: PropTypes.oneOfType([PropTypes.bool, PropTypes.func]),
   onChange: PropTypes.func.isRequired,
   onFocus: PropTypes.func,
   selectOptions: PropTypes.arrayOf(
@@ -199,12 +208,13 @@ InputSelectWithErrors.propTypes = {
         value: PropTypes.string.isRequired,
       }),
       PropTypes.string,
-    ]),
+    ])
   ),
   style: PropTypes.object,
   tabIndex: PropTypes.string,
   validations: PropTypes.object,
   value: PropTypes.string.isRequired,
+  withOptionPlaceholder: PropTypes.bool,
 };
 
 export default InputSelectWithErrors;

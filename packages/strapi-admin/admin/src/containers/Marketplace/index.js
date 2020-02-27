@@ -7,36 +7,27 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { Helmet } from 'react-helmet';
 import { FormattedMessage } from 'react-intl';
 import { bindActionCreators, compose } from 'redux';
-import cn from 'classnames';
-
-import { LoadingIndicatorPage, PluginHeader } from 'strapi-helper-plugin';
-
+import { LoadingIndicatorPage } from 'strapi-helper-plugin';
+import { Header } from '@buffetjs/custom';
+import { MarketPlaceContextProvider } from '../../contexts/MarketPlace';
 // Design
+import PageTitle from '../../components/PageTitle';
 import PluginCard from '../../components/PluginCard';
-
 import injectSaga from '../../utils/injectSaga';
 import injectReducer from '../../utils/injectReducer';
-
+import Wrapper from './Wrapper';
 import {
   downloadPlugin,
   getAvailableAndInstalledPlugins,
   resetProps,
 } from './actions';
 import makeSelectMarketplace from './selectors';
-
 import reducer from './reducer';
 import saga from './saga';
 
-import styles from './styles.scss';
-
 class Marketplace extends React.Component {
-  getChildContext = () => ({
-    downloadPlugin: this.props.downloadPlugin,
-  });
-
   componentDidMount() {
     // Fetch the available and installed plugins
     this.props.getAvailableAndInstalledPlugins();
@@ -46,16 +37,11 @@ class Marketplace extends React.Component {
     this.props.resetProps();
   }
 
-  renderHelmet = message => (
-    <Helmet>
-      <title>{message}</title>
-      <meta name="description" content="Description of InstallPluginPage" />
-    </Helmet>
-  );
+  renderHelmet = message => <PageTitle title={message} />;
 
   renderPluginCard = plugin => {
     const {
-      admin: { autoReload, currentEnvironment },
+      global: { autoReload, currentEnvironment },
       availablePlugins,
       downloadPlugin,
       history,
@@ -85,45 +71,59 @@ class Marketplace extends React.Component {
   };
 
   render() {
-    const { availablePlugins, isLoading } = this.props;
+    const {
+      availablePlugins,
+      intl: { formatMessage },
+      isLoading,
+    } = this.props;
 
     if (isLoading) {
       return <LoadingIndicatorPage />;
     }
 
     return (
-      <div>
-        <FormattedMessage id="app.components.InstallPluginPage.helmet">
-          {this.renderHelmet}
-        </FormattedMessage>
-        <div className={cn('container-fluid', styles.containerFluid)}>
-          <PluginHeader
-            title={{ id: 'app.components.InstallPluginPage.title' }}
-            description={{ id: 'app.components.InstallPluginPage.description' }}
-            actions={[]}
-          />
-          <div className={cn('row', styles.wrapper)}>
-            {Object.keys(availablePlugins).map(this.renderPluginCard)}
-          </div>
+      <MarketPlaceContextProvider downloadPlugin={this.props.downloadPlugin}>
+        <div>
+          <FormattedMessage id="app.components.InstallPluginPage.helmet">
+            {this.renderHelmet}
+          </FormattedMessage>
+          <Wrapper className="container-fluid">
+            <Header
+              title={{
+                label: formatMessage({
+                  id: 'app.components.InstallPluginPage.title',
+                }),
+              }}
+              content={formatMessage({
+                id: 'app.components.InstallPluginPage.description',
+              })}
+              actions={[]}
+            />
+            <div className="row" style={{ paddingTop: '4.1rem' }}>
+              {Object.keys(availablePlugins).map(this.renderPluginCard)}
+            </div>
+          </Wrapper>
         </div>
-      </div>
+      </MarketPlaceContextProvider>
     );
   }
 }
 
-Marketplace.childContextTypes = {
-  downloadPlugin: PropTypes.func.isRequired,
-};
-
 Marketplace.defaultProps = {};
 
 Marketplace.propTypes = {
-  admin: PropTypes.object.isRequired,
   availablePlugins: PropTypes.array.isRequired,
   downloadPlugin: PropTypes.func.isRequired,
   getAvailableAndInstalledPlugins: PropTypes.func.isRequired,
+  global: PropTypes.shape({
+    autoReload: PropTypes.bool.isRequired,
+    currentEnvironment: PropTypes.string.isRequired,
+  }).isRequired,
   history: PropTypes.object.isRequired,
   installedPlugins: PropTypes.array.isRequired,
+  intl: PropTypes.shape({
+    formatMessage: PropTypes.func.isRequired,
+  }).isRequired,
   isLoading: PropTypes.bool.isRequired,
   resetProps: PropTypes.func.isRequired,
 };
@@ -137,13 +137,13 @@ function mapDispatchToProps(dispatch) {
       getAvailableAndInstalledPlugins,
       resetProps,
     },
-    dispatch,
+    dispatch
   );
 }
 
 const withConnect = connect(
   mapStateToProps,
-  mapDispatchToProps,
+  mapDispatchToProps
 );
 
 /* Remove this line if the container doesn't have a route and
@@ -159,5 +159,5 @@ const withSaga = injectSaga({ key: 'marketplace', saga });
 export default compose(
   withReducer,
   withSaga,
-  withConnect,
+  withConnect
 )(Marketplace);

@@ -18,9 +18,9 @@ module.exports = {
    * @return Object
    */
 
-  convertToParams: (params, primaryKey) => {
+  convertToParams: params => {
     return Object.keys(params).reduce((acc, current) => {
-      const key = current === 'id' ? primaryKey : `_${current}`;
+      const key = current === 'id' ? 'id' : `_${current}`;
       acc[key] = params[current];
       return acc;
     }, {});
@@ -52,13 +52,13 @@ module.exports = {
   amountLimiting: (params = {}) => {
     const { amountLimit } = strapi.plugins.graphql.config;
 
-    if(!amountLimit) return params;
+    if (!amountLimit) return params;
 
     if (!params.limit || params.limit === -1 || params.limit > amountLimit) {
       params.limit = amountLimit;
     } else if (params.limit < 0) {
       params.limit = 0;
-    } 
+    }
 
     return params;
   },
@@ -69,14 +69,10 @@ module.exports = {
    * @return Promise or Error.
    */
 
-  composeQueryResolver: function(_schema, plugin, name, isSingular) {
+  composeQueryResolver: function({ _schema, plugin, name, isSingular }) {
     const params = {
       model: name,
     };
-
-    const model = plugin
-      ? strapi.plugins[plugin].models[name]
-      : strapi.models[name];
 
     // Extract custom resolver or type description.
     const { resolver: handler = {} } = _schema;
@@ -134,14 +130,11 @@ module.exports = {
 
         // Push global policy to make sure the permissions will work as expected.
         policiesFn.push(
-          policyUtils.globalPolicy(
-            undefined,
-            {
-              handler: `${name}.${action}`,
-            },
-            undefined,
-            plugin
-          )
+          policyUtils.globalPolicy({
+            controller: name,
+            action,
+            plugin,
+          })
         );
 
         // Return the controller.
@@ -174,14 +167,11 @@ module.exports = {
       // Push global policy to make sure the permissions will work as expected.
       // We're trying to detect the controller name.
       policiesFn.push(
-        policyUtils.globalPolicy(
-          undefined,
-          {
-            handler: `${name}.${isSingular ? 'findOne' : 'find'}`,
-          },
-          undefined,
-          plugin
-        )
+        policyUtils.globalPolicy({
+          controller: name,
+          action: isSingular ? 'findOne' : 'find',
+          plugin,
+        })
       );
 
       // Make the query compatible with our controller by
@@ -190,7 +180,7 @@ module.exports = {
         return async (ctx, next) => {
           ctx.params = {
             ...params,
-            [model.primaryKey]: ctx.query[model.primaryKey],
+            id: ctx.query.id,
           };
 
           // Return the controller.
@@ -225,18 +215,15 @@ module.exports = {
         );
       }
 
-      policiesFn[0] = policyUtils.globalPolicy(
-        undefined,
-        {
-          handler: `${name}.${action}`,
-        },
-        undefined,
-        plugin
-      );
+      policiesFn[0] = policyUtils.globalPolicy({
+        controller: name,
+        action,
+        plugin,
+      });
     }
 
     if (strapi.plugins['users-permissions']) {
-      policies.push('plugins.users-permissions.permissions');
+      policies.unshift('plugins.users-permissions.permissions');
     }
 
     // Populate policies.
@@ -250,7 +237,8 @@ module.exports = {
       )
     );
 
-    return async (obj, options = {}, { context }) => {
+    return async (obj, options = {}, graphqlContext) => {
+      const { context } = graphqlContext;
       const _options = _.cloneDeep(options);
 
       // Hack to be able to handle permissions for each query.
@@ -258,6 +246,28 @@ module.exports = {
         request: Object.assign(_.clone(context.request), {
           graphql: null,
         }),
+        response: _.clone(context.response),
+      });
+
+      // Note: we've to used the Object.defineProperties to reset the prototype. It seems that the cloning the context
+      // cause a lost of the Object prototype.
+      const opts = this.amountLimiting(_options);
+
+      Object.defineProperty(ctx, 'query', {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: {
+          ...this.convertToParams(_.omit(opts, 'where')),
+          ...this.convertToQuery(opts.where),
+        },
+      });
+
+      Object.defineProperty(ctx, 'params', {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: this.convertToParams(opts),
       });
 
       // Execute policies stack.
@@ -278,29 +288,6 @@ module.exports = {
 
       // Resolver can be a function. Be also a native resolver or a controller's action.
       if (_.isFunction(resolver)) {
-        // Note: we've to used the Object.defineProperties to reset the prototype. It seems that the cloning the context
-        // cause a lost of the Object prototype.
-        const opts = this.amountLimiting(_options);
-
-        Object.defineProperties(ctx, {
-          query: {
-            value: {
-              ...this.convertToParams(
-                _.omit(opts, 'where'),
-                model ? model.primaryKey : 'id'
-              ),
-              ...this.convertToQuery(opts.where),
-            },
-            writable: true,
-            configurable: true,
-          },
-          params: {
-            value: this.convertToParams(opts, model ? model.primaryKey : 'id'),
-            writable: true,
-            configurable: true,
-          },
-        });
-
         if (isController) {
           const values = await resolver.call(null, ctx, null);
 
@@ -311,7 +298,7 @@ module.exports = {
           return values && values.toJSON ? values.toJSON() : values;
         }
 
-        return resolver.call(null, obj, opts, ctx);
+        return resolver.call(null, obj, opts, graphqlContext);
       }
 
       // Resolver can be a promise.

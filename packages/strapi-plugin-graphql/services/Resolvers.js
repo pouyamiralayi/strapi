@@ -7,12 +7,246 @@
  */
 
 const _ = require('lodash');
-const pluralize = require('pluralize');
+
+const DynamicZoneScalar = require('../types/dynamiczoneScalar');
+
 const Aggregator = require('./Aggregator');
 const Query = require('./Query.js');
 const Mutation = require('./Mutation.js');
 const Types = require('./Types.js');
 const Schema = require('./Schema.js');
+const { toSingular, toPlural } = require('./naming');
+
+const convertAttributes = (attributes, globalId) => {
+  return Object.keys(attributes)
+    .filter(attribute => attributes[attribute].private !== true)
+    .reduce((acc, attribute) => {
+      // Convert our type to the GraphQL type.
+      acc[attribute] = Types.convertType({
+        definition: attributes[attribute],
+        modelName: globalId,
+        attributeName: attribute,
+      });
+      return acc;
+    }, {});
+};
+
+const generateEnumDefinitions = (attributes, globalId) => {
+  return Object.keys(attributes)
+    .filter(attribute => attributes[attribute].type === 'enumeration')
+    .map(attribute => {
+      const definition = attributes[attribute];
+
+      const name = Types.convertEnumType(definition, globalId, attribute);
+      const values = definition.enum.map(v => `\t${v}`).join('\n');
+      return `enum ${name} {\n${values}\n}\n`;
+    })
+    .join('');
+};
+
+const generateDynamicZoneDefinitions = (attributes, globalId, schema) => {
+  Object.keys(attributes)
+    .filter(attribute => attributes[attribute].type === 'dynamiczone')
+    .forEach(attribute => {
+      const { components } = attributes[attribute];
+
+      const typeName = `${globalId}${_.upperFirst(
+        _.camelCase(attribute)
+      )}DynamicZone`;
+
+      if (components.length === 0) {
+        // Create dummy type because graphql doesn't support empty ones
+
+        schema.definition += `type ${typeName} { _:Boolean}`;
+        schema.definition += `\nscalar EmptyQuery\n`;
+      } else {
+        const componentsTypeNames = components.map(componentUID => {
+          const compo = strapi.components[componentUID];
+          if (!compo) {
+            throw new Error(
+              `Trying to creating dynamiczone type with unkown component ${componentUID}`
+            );
+          }
+
+          return compo.globalId;
+        });
+
+        const unionType = `union ${typeName} = ${componentsTypeNames.join(
+          ' | '
+        )}`;
+
+        schema.definition += `\n${unionType}\n`;
+      }
+
+      const inputTypeName = `${typeName}Input`;
+      schema.definition += `\nscalar ${inputTypeName}\n`;
+
+      schema.resolvers[typeName] = {
+        __resolveType(obj) {
+          return strapi.components[obj.__component].globalId;
+        },
+      };
+
+      schema.resolvers[inputTypeName] = new DynamicZoneScalar({
+        name: inputTypeName,
+        attribute,
+        globalId,
+        components,
+      });
+    });
+};
+
+const mutateAssocAttributes = (associations = [], attributes) => {
+  associations
+    .filter(association => association.type === 'collection')
+    .forEach(association => {
+      attributes[
+        `${association.alias}(sort: String, limit: Int, start: Int, where: JSON)`
+      ] = attributes[association.alias];
+
+      delete attributes[association.alias];
+    });
+};
+
+const buildAssocResolvers = model => {
+  const contentManager =
+    strapi.plugins['content-manager'].services['contentmanager'];
+
+  const { primaryKey, associations = [] } = model;
+
+  return associations
+    .filter(association => model.attributes[association.alias].private !== true)
+    .reduce((resolver, association) => {
+      const target = association.model || association.collection;
+      const targetModel = strapi.getModel(target, association.plugin);
+
+      switch (association.nature) {
+        case 'oneToManyMorph':
+        case 'manyMorphToOne':
+        case 'manyMorphToMany':
+        case 'manyToManyMorph': {
+          resolver[association.alias] = async obj => {
+            if (obj[association.alias]) {
+              return obj[association.alias];
+            }
+
+            const entry = await contentManager.fetch(
+              {
+                id: obj[primaryKey],
+                model: model.uid,
+              },
+              [association.alias]
+            );
+
+            return entry[association.alias];
+          };
+          break;
+        }
+        default: {
+          resolver[association.alias] = async (obj, options) => {
+            // Construct parameters object to retrieve the correct related entries.
+            const params = {
+              model: targetModel.uid,
+            };
+
+            let queryOpts = {};
+
+            if (association.type === 'model') {
+              params[targetModel.primaryKey] = _.get(
+                obj,
+                [association.alias, targetModel.primaryKey],
+                obj[association.alias]
+              );
+            } else {
+              const queryParams = Query.amountLimiting(options);
+              queryOpts = {
+                ...queryOpts,
+                ...Query.convertToParams(_.omit(queryParams, 'where')), // Convert filters (sort, limit and start/skip)
+                ...Query.convertToQuery(queryParams.where),
+              };
+
+              if (
+                ((association.nature === 'manyToMany' &&
+                  association.dominant) ||
+                  association.nature === 'manyWay') &&
+                _.has(obj, association.alias) // if populated
+              ) {
+                _.set(
+                  queryOpts,
+                  ['query', targetModel.primaryKey],
+                  obj[association.alias]
+                    ? obj[association.alias]
+                        .map(val => val[targetModel.primaryKey] || val)
+                        .sort()
+                    : []
+                );
+              } else {
+                _.set(
+                  queryOpts,
+                  ['query', association.via],
+                  obj[targetModel.primaryKey]
+                );
+              }
+            }
+
+            return association.model
+              ? strapi.plugins.graphql.services.loaders.loaders[
+                  targetModel.uid
+                ].load({
+                  params,
+                  options: queryOpts,
+                  single: true,
+                })
+              : strapi.plugins.graphql.services.loaders.loaders[
+                  targetModel.uid
+                ].load({
+                  options: queryOpts,
+                  association,
+                });
+          };
+          break;
+        }
+      }
+
+      return resolver;
+    }, {});
+};
+
+const buildModel = (model, { schema, isComponent = false } = {}) => {
+  const { globalId, primaryKey } = model;
+
+  schema.resolvers[globalId] = {
+    id: obj => obj[primaryKey],
+    ...buildAssocResolvers(model),
+  };
+
+  const initialState = {
+    id: 'ID!',
+    [primaryKey]: 'ID!',
+  };
+
+  if (_.isArray(_.get(model, 'options.timestamps'))) {
+    const [createdAtKey, updatedAtKey] = model.options.timestamps;
+    initialState[createdAtKey] = 'DateTime!';
+    initialState[updatedAtKey] = 'DateTime!';
+  }
+
+  const attributes = convertAttributes(model.attributes, globalId);
+  mutateAssocAttributes(model.associations, attributes);
+  _.merge(attributes, initialState);
+
+  schema.definition += generateEnumDefinitions(model.attributes, globalId);
+  generateDynamicZoneDefinitions(model.attributes, globalId, schema);
+
+  const description = Schema.getDescription({}, model);
+  const fields = Schema.formatGQL(attributes, {}, model);
+  const typeDef = `${description}type ${globalId} {${fields}}\n`;
+
+  schema.definition += typeDef;
+  schema.definition += Types.generateInputModel(model, globalId, {
+    allowIds: isComponent,
+  });
+};
 
 /**
  * Construct the GraphQL query & definition and apply the right resolvers.
@@ -21,119 +255,96 @@ const Schema = require('./Schema.js');
  */
 
 const buildShadowCRUD = (models, plugin) => {
-  // Retrieve generic service from the Content Manager plugin.
-  const resolvers = strapi.plugins['content-manager'].services['contentmanager'];
-
   const initialState = {
     definition: '',
     query: {},
     mutation: {},
-    resolver: { Query: {}, Mutation: {} },
+    resolvers: { Query: {}, Mutation: {} },
   };
 
   if (_.isEmpty(models)) {
     return initialState;
   }
 
-  return models.reduce((acc, name) => {
-    const model = plugin ? strapi.plugins[plugin].models[name] : strapi.models[name];
+  return Object.keys(models).reduce((acc, name) => {
+    const model = models[name];
+
+    const { globalId, primaryKey } = model;
 
     // Setup initial state with default attribute that should be displayed
     // but these attributes are not properly defined in the models.
     const initialState = {
-      [model.primaryKey]: 'ID!',
+      [primaryKey]: 'ID!',
     };
 
-    // always add an id field  os to make the api database agnostic
-    if (model.primaryKey !== 'id') {
+    // always add an id field to make the api database agnostic
+    if (primaryKey !== 'id') {
       initialState['id'] = 'ID!';
     }
 
-    const globalId = model.globalId;
-    const _schema = _.cloneDeep(_.get(strapi.plugins, 'graphql.config._schema.graphql', {}));
-
-    if (!acc.resolver[globalId]) {
-      acc.resolver[globalId] = {
-        // define the default id resolver
-        id(parent) {
-          return parent[model.primaryKey];
-        },
-      };
-    }
+    acc.resolvers[globalId] = {
+      // define the default id resolver
+      id(parent) {
+        return parent[model.primaryKey];
+      },
+    };
 
     // Add timestamps attributes.
     if (_.isArray(_.get(model, 'options.timestamps'))) {
-      Object.assign(initialState, {
-        [_.get(model, ['options', 'timestamps', 0])]: 'DateTime!',
-        [_.get(model, ['options', 'timestamps', 1])]: 'DateTime!',
-      });
+      const [createdAtKey, updatedAtKey] = model.options.timestamps;
+      initialState[createdAtKey] = 'DateTime!';
+      initialState[updatedAtKey] = 'DateTime!';
     }
 
-    // Retrieve user customisation.
+    const _schema = _.cloneDeep(
+      _.get(strapi.plugins, 'graphql.config._schema.graphql', {})
+    );
+
     const { type = {}, resolver = {} } = _schema;
 
     // Convert our layer Model to the GraphQL DL.
-    const attributes = Object.keys(model.attributes)
-      .filter(attribute => model.attributes[attribute].private !== true)
-      .reduce((acc, attribute) => {
-        // Convert our type to the GraphQL type.
-        acc[attribute] = Types.convertType({
-          definition: model.attributes[attribute],
-          modelName: globalId,
-          attributeName: attribute,
-        });
+    const attributes = convertAttributes(model.attributes, globalId);
+    mutateAssocAttributes(model.associations, attributes);
+    _.merge(attributes, initialState);
 
-        return acc;
-      }, initialState);
+    acc.definition += generateEnumDefinitions(model.attributes, globalId);
+    generateDynamicZoneDefinitions(model.attributes, globalId, acc);
 
-    // Detect enum and generate it for the schema definition
-    const enums = Object.keys(model.attributes)
-      .filter(attribute => model.attributes[attribute].type === 'enumeration')
-      .map(attribute => {
-        const definition = model.attributes[attribute];
+    const description = Schema.getDescription(type[globalId], model);
+    const fields = Schema.formatGQL(attributes, type[globalId], model);
+    const typeDef = `${description}type ${globalId} {${fields}}\n`;
 
-        return `enum ${Types.convertEnumType(
-          definition,
-          globalId,
-          attribute
-        )} { ${definition.enum.join(' \n ')} }`;
-      })
-      .join(' ');
-
-    acc.definition += enums;
-
-    // Add parameters to optimize association query.
-    (model.associations || [])
-      .filter(association => association.type === 'collection')
-      .forEach(association => {
-        attributes[`${association.alias}(sort: String, limit: Int, start: Int, where: JSON)`] =
-          attributes[association.alias];
-
-        delete attributes[association.alias];
-      });
-
-
-    acc.definition += `${Schema.getDescription(
-      type[globalId],
-      model
-    )}type ${globalId} {${Schema.formatGQL(attributes, type[globalId], model)}}\n\n`;
+    acc.definition += typeDef;
 
     // Add definition to the schema but this type won't be "queriable" or "mutable".
-    if (type[model.globalId] === false || _.get(type, `${model.globalId}.enabled`) === false) {
+    if (
+      type[model.globalId] === false ||
+      _.get(type, `${model.globalId}.enabled`) === false
+    ) {
       return acc;
     }
 
-    const singularName = pluralize.singular(name);
-    const pluralName = pluralize.plural(name);
+    const singularName = toSingular(name);
+    const pluralName = toPlural(name);
     // Build resolvers.
     const queries = {
       singular:
         _.get(resolver, `Query.${singularName}`) !== false
-          ? Query.composeQueryResolver(_schema, plugin, name, true)
+          ? Query.composeQueryResolver({
+              _schema,
+              plugin,
+              name,
+              isSingular: true,
+            })
           : null,
       plural:
         _.get(resolver, `Query.${pluralName}`) !== false
-          ? Query.composeQueryResolver(_schema, plugin, name, false)
+          ? Query.composeQueryResolver({
+              _schema,
+              plugin,
+              name,
+              isSingular: false,
+            })
           : null,
     };
 
@@ -151,7 +362,7 @@ const buildShadowCRUD = (models, plugin) => {
         query: {
           [`${singularName}(id: ID!)`]: model.globalId,
         },
-        resolver: {
+        resolvers: {
           Query: {
             [singularName]: queries.singular,
           },
@@ -162,11 +373,9 @@ const buildShadowCRUD = (models, plugin) => {
     if (_.isFunction(queries.plural)) {
       _.merge(acc, {
         query: {
-          [`${pluralName}(sort: String, limit: Int, start: Int, where: JSON)`]: `[${
-            model.globalId
-          }]`,
+          [`${pluralName}(sort: String, limit: Int, start: Int, where: JSON)`]: `[${model.globalId}]`,
         },
-        resolver: {
+        resolvers: {
           Query: {
             [pluralName]: queries.plural,
           },
@@ -177,19 +386,34 @@ const buildShadowCRUD = (models, plugin) => {
     // TODO:
     // - Implement batch methods (need to update the content-manager as well).
     // - Implement nested transactional methods (create/update).
-    const capitalizedName = _.capitalize(name);
+    const capitalizedName = _.upperFirst(singularName);
     const mutations = {
       create:
         _.get(resolver, `Mutation.create${capitalizedName}`) !== false
-          ? Mutation.composeMutationResolver(_schema, plugin, name, 'create')
+          ? Mutation.composeMutationResolver({
+              _schema,
+              plugin,
+              name,
+              action: 'create',
+            })
           : null,
       update:
         _.get(resolver, `Mutation.update${capitalizedName}`) !== false
-          ? Mutation.composeMutationResolver(_schema, plugin, name, 'update')
+          ? Mutation.composeMutationResolver({
+              _schema,
+              plugin,
+              name,
+              action: 'update',
+            })
           : null,
       delete:
         _.get(resolver, `Mutation.delete${capitalizedName}`) !== false
-          ? Mutation.composeMutationResolver(_schema, plugin, name, 'delete')
+          ? Mutation.composeMutationResolver({
+              _schema,
+              plugin,
+              name,
+              action: 'delete',
+            })
           : null,
     };
 
@@ -202,7 +426,11 @@ const buildShadowCRUD = (models, plugin) => {
         let mutationName = `${type}${capitalizedName}`;
 
         // Generate the Input for this specific action.
-        acc.definition += Types.generateInputPayloadArguments(model, name, type);
+        acc.definition += Types.generateInputPayloadArguments(
+          model,
+          name,
+          type
+        );
 
         switch (type) {
           case 'create':
@@ -229,7 +457,7 @@ const buildShadowCRUD = (models, plugin) => {
         // Assign mutation definition to global definition.
         _.merge(acc, {
           mutation: mutationDefinition,
-          resolver: {
+          resolvers: {
             Mutation: {
               [`${mutationName}`]: mutations[type],
             },
@@ -238,162 +466,29 @@ const buildShadowCRUD = (models, plugin) => {
       }
     });
 
-    // TODO:
-    // - Add support for Graphql Aggregation in Bookshelf ORM
+    // TODO: Add support for Graphql Aggregation in Bookshelf ORM
     if (model.orm === 'mongoose') {
       // Generation the aggregation for the given model
       const modelAggregator = Aggregator.formatModelConnectionsGQL(
         attributes,
         model,
         name,
-        queries.plural
+        queries.plural,
+        plugin
       );
       if (modelAggregator) {
         acc.definition += modelAggregator.type;
-        if (!acc.resolver[modelAggregator.globalId]) {
-          acc.resolver[modelAggregator.globalId] = {};
+        if (!acc.resolvers[modelAggregator.globalId]) {
+          acc.resolvers[modelAggregator.globalId] = {};
         }
 
-        _.merge(acc.resolver, modelAggregator.resolver);
+        _.merge(acc.resolvers, modelAggregator.resolver);
         _.merge(acc.query, modelAggregator.query);
       }
     }
 
     // Build associations queries.
-    (model.associations || []).forEach(association => {
-      switch (association.nature) {
-        case 'oneToManyMorph':
-          return _.merge(acc.resolver[globalId], {
-            [association.alias]: async obj => {
-              const withRelated = await resolvers.fetch(
-                {
-                  id: obj[model.primaryKey],
-                  model: name,
-                },
-                plugin,
-                [association.alias],
-                false
-              );
-
-              const entry = withRelated && withRelated.toJSON ? withRelated.toJSON() : withRelated;
-
-              // Set the _type only when the value is defined
-              if (entry[association.alias]) {
-                entry[association.alias]._type = _.upperFirst(association.model);
-              }
-
-              return entry[association.alias];
-            },
-          });
-        case 'manyMorphToOne':
-        case 'manyMorphToMany':
-        case 'manyToManyMorph':
-          return _.merge(acc.resolver[globalId], {
-            [association.alias]: async obj => {
-              // eslint-disable-line no-unused-vars
-              const [withRelated, withoutRelated] = await Promise.all([
-                resolvers.fetch(
-                  {
-                    id: obj[model.primaryKey],
-                    model: name,
-                  },
-                  plugin,
-                  [association.alias],
-                  false
-                ),
-                resolvers.fetch(
-                  {
-                    id: obj[model.primaryKey],
-                    model: name,
-                  },
-                  plugin,
-                  []
-                ),
-              ]);
-
-              const entry = withRelated && withRelated.toJSON ? withRelated.toJSON() : withRelated;
-
-              // TODO:
-              // - Handle sort, limit and start (lodash or inside the query)
-              entry[association.alias].map((entry, index) => {
-                const type =
-                  _.get(withoutRelated, `${association.alias}.${index}.kind`) ||
-                  _.upperFirst(
-                    _.camelCase(
-                      _.get(
-                        withoutRelated,
-                        `${association.alias}.${index}.${association.alias}_type`
-                      )
-                    )
-                  ) ||
-                  _.upperFirst(_.camelCase(association[association.type]));
-
-                entry._type = type;
-
-                return entry;
-              });
-
-              return entry[association.alias];
-            },
-          });
-        default:
-      }
-
-      _.merge(acc.resolver[globalId], {
-        [association.alias]: async (obj, options) => {
-          // eslint-disable-line no-unused-vars
-          // Construct parameters object to retrieve the correct related entries.
-          const params = {
-            model: association.model || association.collection,
-          };
-
-          let queryOpts = {
-            source: association.plugin,
-          };
-
-          // Get refering model.
-          const ref = association.plugin
-            ? strapi.plugins[association.plugin].models[params.model]
-            : strapi.models[params.model];
-
-          if (association.type === 'model') {
-            params[ref.primaryKey] = _.get(
-              obj,
-              [association.alias, ref.primaryKey],
-              obj[association.alias]
-            );
-          } else {
-            const queryParams = Query.amountLimiting(options);
-            queryOpts = {
-              ...queryOpts,
-              ...Query.convertToParams(_.omit(queryParams, 'where')), // Convert filters (sort, limit and start/skip)
-              ...Query.convertToQuery(queryParams.where),
-            };
-
-            if (model.orm === 'mongoose' && association.nature === 'manyToMany' && association.dominant) {
-              _.set(queryOpts, ['query', ref.primaryKey], obj[association.alias].map(val => val[ref.primaryKey] || val) || []);
-            }
-
-            _.set(queryOpts, ['query', association.via], obj[ref.primaryKey]);
-          }
-
-          const loaderName = association.plugin
-            ? `${association.plugin}__${params.model}`
-            : params.model;
-
-          return association.model
-            ? strapi.plugins.graphql.services.loaders.loaders[loaderName].load({
-              params,
-              options: queryOpts,
-              single: true,
-            })
-            : strapi.plugins.graphql.services.loaders.loaders[loaderName].load({
-              options: queryOpts,
-              association,
-            });
-        },
-      });
-    });
+    _.assign(acc.resolvers[globalId], buildAssocResolvers(model));
 
     return acc;
   }, initialState);
@@ -401,4 +496,5 @@ const buildShadowCRUD = (models, plugin) => {
 
 module.exports = {
   buildShadowCRUD,
+  buildModel,
 };

@@ -12,28 +12,14 @@ let modelsUtils;
 const selectFields = doc => _.pick(doc, ['id', 'name']);
 
 const documentModel = {
-  attributes: [
-    {
-      name: 'name',
-      params: {
-        appearance: {
-          WYSIWYG: false,
-        },
-        multiple: false,
-        type: 'string',
-      },
+  attributes: {
+    name: {
+      type: 'richtext',
     },
-    {
-      name: 'content',
-      params: {
-        appearance: {
-          WYSIWYG: true,
-        },
-        multiple: false,
-        type: 'text',
-      },
+    content: {
+      type: 'richtext',
     },
-  ],
+  },
   connection: 'default',
   name: 'document',
   description: '',
@@ -41,27 +27,17 @@ const documentModel = {
 };
 
 const labelModel = {
-  attributes: [
-    {
-      name: 'name',
-      params: {
-        appearance: {
-          WYSIWYG: false,
-        },
-        multiple: false,
-        type: 'string',
-      },
+  attributes: {
+    name: {
+      type: 'richtext',
     },
-    {
-      name: 'documents',
-      params: {
-        dominant: true,
-        nature: 'manyToMany',
-        target: 'document',
-        key: 'labels',
-      },
+    documents: {
+      dominant: true,
+      nature: 'manyToMany',
+      target: 'application::document.document',
+      targetAttribute: 'labels',
     },
-  ],
+  },
   connection: 'default',
   name: 'label',
   description: '',
@@ -83,10 +59,10 @@ describe('Test Graphql Relations API End to End', () => {
 
     modelsUtils = createModelsUtils({ rq });
 
-    await modelsUtils.createModels([documentModel, labelModel]);
+    await modelsUtils.createContentTypes([documentModel, labelModel]);
   }, 60000);
 
-  afterAll(() => modelsUtils.deleteModels(['document', 'label']), 60000);
+  afterAll(() => modelsUtils.deleteContentTypes(['document', 'label']), 60000);
 
   describe('Test relations features', () => {
     let data = {
@@ -338,6 +314,7 @@ describe('Test Graphql Relations API End to End', () => {
             mutation deleteLabel($input: deleteLabelInput) {
               deleteLabel(input: $input) {
                 label {
+                  id
                   name
                 }
               }
@@ -353,6 +330,15 @@ describe('Test Graphql Relations API End to End', () => {
         });
 
         expect(res.statusCode).toBe(200);
+        expect(res.body).toMatchObject({
+          data: {
+            deleteLabel: {
+              label: {
+                id: label.id,
+              },
+            },
+          },
+        });
       }
 
       const res = await graphqlQuery({
@@ -392,6 +378,7 @@ describe('Test Graphql Relations API End to End', () => {
             mutation deleteDocument($input: deleteDocumentInput) {
               deleteDocument(input: $input) {
                 document {
+                  id
                   name
                 }
               }
@@ -407,6 +394,15 @@ describe('Test Graphql Relations API End to End', () => {
         });
 
         expect(res.statusCode).toBe(200);
+        expect(res.body).toMatchObject({
+          data: {
+            deleteDocument: {
+              document: {
+                id: document.id,
+              },
+            },
+          },
+        });
       }
     });
   });

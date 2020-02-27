@@ -1,6 +1,6 @@
 import 'whatwg-fetch';
-import auth from './auth';
 import _ from 'lodash';
+import auth from './auth';
 
 /**
  * Parses the JSON returned by a network request
@@ -52,9 +52,7 @@ function checkTokenValidity(response) {
   if (auth.getToken()) {
     return fetch(`${strapi.backendURL}/users/me`, options).then(() => {
       if (response.status === 401) {
-        window.location = `${
-          strapi.remoteURL
-        }/plugins/users-permissions/auth/login`;
+        window.location = `${strapi.remoteURL}/plugins/users-permissions/auth/login`;
 
         auth.clearAppStorage();
       }
@@ -137,10 +135,7 @@ export default function request(...args) {
       {
         'Content-Type': 'application/json',
       },
-      options.headers,
-      {
-        'X-Forwarded-Host': 'strapi',
-      }
+      options.headers
     );
   }
 
@@ -175,6 +170,7 @@ export default function request(...args) {
       if (shouldWatchServerRestart) {
         // Display the global OverlayBlocker
         strapi.lockApp(shouldWatchServerRestart);
+
         return serverRestartWatcher(response);
       }
 

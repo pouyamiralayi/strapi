@@ -18,8 +18,7 @@ import InputDescription from '../InputDescription';
 import InputErrors from '../InputErrors';
 import InputPassword from '../InputPassword';
 import InputSpacer from '../InputSpacer';
-
-import styles from './styles.scss';
+import InputWrapper from '../InputWrapper';
 
 class InputPasswordWithErrors extends React.Component {
   state = { errors: [], hasInitialValue: false };
@@ -38,7 +37,7 @@ class InputPasswordWithErrors extends React.Component {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  UNSAFE_componentWillReceiveProps(nextProps) {
     // Show required error if the input's value is received after the compo is mounted
     if (!isEmpty(nextProps.value) && !this.state.hasInitialValue) {
       this.setState({ hasInitialValue: true });
@@ -62,7 +61,7 @@ class InputPasswordWithErrors extends React.Component {
       const errors = validateInput(target.value, this.props.validations);
       this.setState({ errors, hasInitialValue: true });
     }
-  }
+  };
 
   render() {
     const {
@@ -87,7 +86,9 @@ class InputPasswordWithErrors extends React.Component {
       tabIndex,
       value,
     } = this.props;
-    const handleBlur = isFunction(this.props.onBlur) ? this.props.onBlur : this.handleBlur;
+    const handleBlur = isFunction(this.props.onBlur)
+      ? this.props.onBlur
+      : this.handleBlur;
 
     let spacer = !isEmpty(inputDescription) ? <InputSpacer /> : <div />;
 
@@ -96,11 +97,10 @@ class InputPasswordWithErrors extends React.Component {
     }
 
     return (
-      <div
+      <InputWrapper
         className={cn(
-          styles.containerInputPassword,
           this.props.customBootstrapClass,
-          !isEmpty(this.props.className) && this.props.className,
+          !isEmpty(this.props.className) && this.props.className
         )}
         style={style}
       >
@@ -132,12 +132,12 @@ class InputPasswordWithErrors extends React.Component {
         />
         <InputErrors
           className={errorsClassName}
-          errors={!noErrorsDescription && this.state.errors || []}
+          errors={(!noErrorsDescription && this.state.errors) || []}
           name={name}
           style={errorsStyle}
         />
         {spacer}
-      </div>
+      </InputWrapper>
     );
   }
 }
@@ -168,7 +168,6 @@ InputPasswordWithErrors.defaultProps = {
   tabIndex: '0',
   validations: {},
 };
-
 
 InputPasswordWithErrors.propTypes = {
   autoFocus: PropTypes.bool,
@@ -204,10 +203,7 @@ InputPasswordWithErrors.propTypes = {
   labelStyle: PropTypes.object,
   name: PropTypes.string.isRequired,
   noErrorsDescription: PropTypes.bool,
-  onBlur: PropTypes.oneOfType([
-    PropTypes.bool,
-    PropTypes.func,
-  ]),
+  onBlur: PropTypes.oneOfType([PropTypes.bool, PropTypes.func]),
   onChange: PropTypes.func.isRequired,
   onFocus: PropTypes.func,
   placeholder: PropTypes.string,

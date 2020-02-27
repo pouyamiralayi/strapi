@@ -1,28 +1,27 @@
 # API Reference
 
-  - strapi
-    - [.admin](#strapi-admin)
-    - [.api](#strapi-api)
-    - [.app](#strapiapp)
-    - [.bootstrap()](#strapi-bootstrap)
-    - [.config](#strapi-config)
-    - [.controllers](#strapi-controllers)
-    - [.hook](#strapi-hook)
-    - [.koaMiddlewares](#strapi-koaMiddlewares)
-    - [.load()](#strapi-load)
-    - [.log](#strapi-log)
-    - [.middleware](#strapi-middleware)
-    - [.models](#strapi-models)
-    - [.plugins](#strapi-plugins)
-    - [.query()](#strapi-query)
-    - [.reload()](#strapi-reload)
-    - [.router](#strapi-router)
-    - [.server](#strapi-server)
-    - [.services](#strapi-services)
-    - [.start()](#strapi-start)
-    - [.stop()](#strapi-stop)
-    - [.utils](#strapi-utils)
-
+- strapi
+  - [.admin](#strapi-admin)
+  - [.api](#strapi-api)
+  - [.app](#strapiapp)
+  - [.bootstrap()](#strapi-bootstrap)
+  - [.config](#strapi-config)
+  - [.controllers](#strapi-controllers)
+  - [.hook](#strapi-hook)
+  - [.koaMiddlewares](#strapi-koaMiddlewares)
+  - [.load()](#strapi-load)
+  - [.log](#strapi-log)
+  - [.middleware](#strapi-middleware)
+  - [.models](#strapi-models)
+  - [.plugins](#strapi-plugins)
+  - [.query()](#strapi-query)
+  - [.reload()](#strapi-reload)
+  - [.router](#strapi-router)
+  - [.server](#strapi-server)
+  - [.services](#strapi-services)
+  - [.start()](#strapi-start)
+  - [.stop()](#strapi-stop)
+  - [.utils](#strapi-utils)
 
 ## strapi.admin
 
@@ -41,7 +40,7 @@ Returns the Koa instance.
 
 Returns a `Promise`. When resolved, it means that the `./config/functions/bootstrap.js` has been executed. Otherwise, it throws an error.
 
-::: note
+::: tip
 You can also access to the bootstrap function through `strapi.config.functions.boostrap`.
 :::
 
@@ -53,7 +52,7 @@ Returns an object that represents the configurations of the project. Every JavaS
 
 Returns an object of the controllers which is available in the project. Every JavaScript file located in the `./api/**/controllers` folder will be parsed into the `strapi.controllers` object. Thanks to this object, you can access to every controller's actions everywhere in the project.
 
-::: note
+::: tip
 This object doesn't include the admin's controllers and plugin's controllers.
 :::
 

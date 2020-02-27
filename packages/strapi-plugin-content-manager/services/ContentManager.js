@@ -5,11 +5,9 @@ const _ = require('lodash');
 /**
  * A set of functions called "actions" for `ContentManager`
  */
-
-/* eslint-disable indent */
 module.exports = {
-  fetchAll: async (params, query) => {
-    const { query: request, source, populate = [], ...filters } = query;
+  fetchAll(params, query) {
+    const { query: request, populate, ...filters } = query;
 
     const queryFilter = !_.isEmpty(request)
       ? {
@@ -18,287 +16,65 @@ module.exports = {
         }
       : filters;
 
-    // Find entries using `queries` system
-    return await strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .find(queryFilter, populate);
+    return strapi.entityService.find(
+      { params: queryFilter, populate },
+      { model: params.model }
+    );
   },
 
-  search: async (params, query) => {
-    const { limit, skip, sort, source, _q, populate = [] } = query; // eslint-disable-line no-unused-vars
-    const filters = strapi.utils.models.convertParams(params.model, query);
+  fetch(params, populate) {
+    const { id, model } = params;
 
-    // Find entries using `queries` system
-    return await strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .search(
-        {
-          limit: limit || filters.limit,
-          skip: skip || filters.start || 0,
-          sort: sort || filters.sort,
-          search: _q,
-        },
-        populate
-      );
-  },
-
-  countSearch: async (params, query) => {
-    const { source, _q } = query;
-
-    return await strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .countSearch({ search: _q });
-  },
-
-  count: async (params, query) => {
-    const { source, ...filters } = query;
-
-    return await strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .count(filters);
-  },
-
-  fetch: async (params, source, populate, raw = true) => {
-    return await strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .findOne(
-        {
-          id: params.id,
+    return strapi.entityService.findOne(
+      {
+        params: {
+          id,
         },
         populate,
-        raw
-      );
-  },
-
-  add: async (params, values, source) => {
-    // Multipart/form-data.
-    if (values.hasOwnProperty('fields') && values.hasOwnProperty('files')) {
-      // Silent recursive parser.
-      const parser = value => {
-        try {
-          const parsed = JSON.parse(value);
-          // if we parse a value and it is still a string leave it as is
-          if (typeof parsed !== 'string') {
-            value = parsed;
-          }
-        } catch (e) {
-          // Silent.
-        }
-
-        return _.isArray(value) ? value.map(obj => parser(obj)) : value;
-      };
-
-      const files = values.files;
-
-      // Parse stringify JSON data.
-      values = Object.keys(values.fields).reduce((acc, current) => {
-        acc[current] = parser(values.fields[current]);
-
-        return acc;
-      }, {});
-
-      // Update JSON fields.
-      const entry = await strapi.plugins['content-manager']
-        .queries(params.model, source)
-        .create({
-          values,
-        });
-
-      // Then, request plugin upload.
-      if (strapi.plugins.upload && Object.keys(files).length > 0) {
-        // Upload new files and attach them to this entity.
-        await strapi.plugins.upload.services.upload.uploadToEntity(
-          {
-            id: entry.id || entry._id,
-            model: params.model,
-          },
-          files,
-          source
-        );
-      }
-
-      return strapi.plugins['content-manager']
-        .queries(params.model, source)
-        .findOne({
-          id: entry.id || entry._id,
-        });
-    }
-
-    // Create an entry using `queries` system
-    return await strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .create({
-        values,
-      });
-  },
-
-  edit: async (params, values, source) => {
-    // Multipart/form-data.
-    if (values.hasOwnProperty('fields') && values.hasOwnProperty('files')) {
-      // Silent recursive parser.
-      const parser = value => {
-        try {
-          const parsed = JSON.parse(value);
-          // do not modify initial value if it is string except 'null'
-          if (typeof parsed !== 'string') {
-            value = parsed;
-          }
-        } catch (e) {
-          // Silent.
-        }
-
-        return _.isArray(value) ? value.map(obj => parser(obj)) : value;
-      };
-
-      const files = values.files;
-
-      // set empty attributes if old values was cleared
-      _.difference(Object.keys(files), Object.keys(values.fields)).forEach(
-        attr => {
-          values.fields[attr] = [];
-        }
-      );
-
-      // Parse stringify JSON data.
-      values = Object.keys(values.fields).reduce((acc, current) => {
-        acc[current] = parser(values.fields[current]);
-
-        return acc;
-      }, {});
-
-      // Update JSON fields.
-      await strapi.plugins['content-manager']
-        .queries(params.model, source)
-        .update({
-          id: params.id,
-          values,
-        });
-
-      // Then, request plugin upload.
-      if (strapi.plugins.upload) {
-        // Upload new files and attach them to this entity.
-        await strapi.plugins.upload.services.upload.uploadToEntity(
-          params,
-          files,
-          source
-        );
-      }
-
-      return strapi.plugins['content-manager']
-        .queries(params.model, source)
-        .findOne({
-          id: params.id,
-        });
-    }
-
-    // Raw JSON.
-    return strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .update({
-        id: params.id,
-        values,
-      });
-  },
-
-  delete: async (params, { source }) => {
-    const query = strapi.plugins['content-manager'].queries(
-      params.model,
-      source
+      },
+      { model }
     );
-    const primaryKey = query.primaryKey;
-    const response = await query.findOne({
-      id: params.id,
-    });
-
-    if (!response) {
-      throw `This resource doesn't exist.`;
-    }
-
-    params[primaryKey] = response[primaryKey];
-
-    params.values = Object.keys(response).reduce((acc, current) => {
-      const association = (
-        strapi.models[params.model] ||
-        strapi.admin.models[params.model] ||
-        strapi.plugins[source].models[params.model]
-      ).associations.filter(x => x.alias === current)[0];
-
-      // Remove relationships.
-      if (association) {
-        acc[current] = _.isArray(response[current]) ? [] : null;
-      }
-
-      return acc;
-    }, {});
-
-    if (!_.isEmpty(params.values)) {
-      // Run update to remove all relationships.
-      await strapi.plugins['content-manager']
-        .queries(params.model, source)
-        .update(params);
-    }
-
-    // Delete an entry using `queries` system
-    return await strapi.plugins['content-manager']
-      .queries(params.model, source)
-      .delete({
-        id: params.id,
-      });
   },
 
-  deleteMany: async (params, query) => {
-    const { source } = query;
+  count(params, query) {
+    const { model } = params;
+    const { ...filters } = query;
+
+    return strapi.entityService.count({ params: filters }, { model });
+  },
+
+  create(data, { files, model } = {}) {
+    return strapi.entityService.create({ data, files }, { model });
+  },
+
+  edit(params, data, { model, files } = {}) {
+    return strapi.entityService.update({ params, data, files }, { model });
+  },
+
+  delete(params) {
+    const { id, model } = params;
+    return strapi.entityService.delete({ params: { id } }, { model });
+  },
+
+  deleteMany(params, query) {
     const { model } = params;
 
-    const primaryKey = strapi.plugins['content-manager'].queries(model, source)
-      .primaryKey;
-    const toRemove = Object.keys(query).reduce((acc, curr) => {
-      if (curr !== 'source') {
-        return acc.concat([query[curr]]);
-      }
+    const { primaryKey } = strapi.query(model);
+    const filter = { [`${primaryKey}_in`]: Object.values(query), _limit: 100 };
 
-      return acc;
-    }, []);
+    return strapi.entityService.delete({ params: filter }, { model });
+  },
 
-    const filter = { [`${primaryKey}_in`]: toRemove };
-    const entries = await strapi.plugins['content-manager']
-      .queries(model, source)
-      .find(filter, null, true);
-    const associations = strapi.plugins['content-manager'].queries(
-      model,
-      source
-    ).associations;
+  search(params, query) {
+    const { model } = params;
 
-    for (let i = 0; i < entries.length; ++i) {
-      const entry = entries[i];
+    return strapi.entityService.search({ params: query }, { model });
+  },
 
-      associations.forEach(association => {
-        if (entry[association.alias]) {
-          switch (association.nature) {
-            case 'oneWay':
-            case 'oneToOne':
-            case 'manyToOne':
-            case 'oneToManyMorph':
-              entry[association.alias] = null;
-              break;
-            case 'oneToMany':
-            case 'manyToMany':
-            case 'manyToManyMorph':
-              entry[association.alias] = [];
-              break;
-            default:
-          }
-        }
-      });
+  countSearch(params, query) {
+    const { model } = params;
+    const { _q } = query;
 
-      await strapi.plugins['content-manager'].queries(model, source).update({
-        [primaryKey]: entry[primaryKey],
-        values: _.pick(entry, associations.map(a => a.alias)),
-      });
-    }
-
-    return strapi.plugins['content-manager'].queries(model, source).deleteMany({
-      [primaryKey]: toRemove,
-    });
+    return strapi.entityService.countSearch({ params: { _q } }, { model });
   },
 };

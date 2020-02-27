@@ -5,16 +5,17 @@
 //  * Entry point of the application
 //  */
 
+/* eslint-disable */
+
 import '@babel/polyfill';
 import 'sanitize.css/sanitize.css';
 
 // Third party css library needed
-// Currently unable to bundle them
-
-import 'react-select/dist/react-select.css';
 import 'react-datetime/css/react-datetime.css';
-
-import './styles/main.scss';
+import 'bootstrap/dist/css/bootstrap.css';
+import 'font-awesome/css/font-awesome.min.css';
+import '@fortawesome/fontawesome-free/css/all.css';
+import '@fortawesome/fontawesome-free/js/all.min.js';
 
 import React from 'react';
 import ReactDOM from 'react-dom';
@@ -22,12 +23,12 @@ import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 
 import { merge } from 'lodash';
+import { Fonts } from '@buffetjs/styles';
 import {
   freezeApp,
   pluginLoaded,
   unfreezeApp,
   updatePlugin,
-  getAppPluginsSucceeded,
 } from './containers/App/actions';
 import { showNotification } from './containers/NotificationProvider/actions';
 
@@ -55,8 +56,6 @@ const store = configureStore(initialState, history);
 const { dispatch } = store;
 const MOUNT_NODE =
   document.getElementById('app') || document.createElement('div');
-
-dispatch(getAppPluginsSucceeded(Object.keys(plugins)));
 
 Object.keys(plugins).forEach(plugin => {
   const currentPlugin = plugins[plugin];
@@ -90,7 +89,7 @@ Object.keys(plugins).forEach(plugin => {
 
 // TODO
 const remoteURL = (() => {
-    // Relative URL (ex: /dashboard)
+  // Relative URL (ex: /dashboard)
   if (REMOTE_URL[0] === '/') {
     return (window.location.origin + REMOTE_URL).replace(/\/$/, '');
   }
@@ -110,6 +109,7 @@ const unlockApp = () => {
 
 window.strapi = Object.assign(window.strapi || {}, {
   node: MODE || 'host',
+  env: NODE_ENV,
   remoteURL,
   backendURL: BACKEND_URL === '/' ? window.location.origin : BACKEND_URL,
   notification: {
@@ -153,6 +153,7 @@ window.strapi = Object.assign(window.strapi || {}, {
 const render = messages => {
   ReactDOM.render(
     <Provider store={store}>
+      <Fonts />
       <LanguageProvider messages={messages}>
         <BrowserRouter basename={basename}>
           <App store={store} />
@@ -182,7 +183,7 @@ if (NODE_ENV !== 'test') {
           import('intl/locale-data/jsonp/en.js'),
           import('intl/locale-data/jsonp/de.js'),
         ])
-      ) // eslint-disable-line prettier/prettier
+      )
       .then(() => render(translationMessages))
       .catch(err => {
         throw err;

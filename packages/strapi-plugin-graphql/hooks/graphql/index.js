@@ -14,7 +14,7 @@ module.exports = strapi => {
   const { appPath, installedPlugins } = strapi.config;
 
   return {
-    beforeInitialize: async function() {
+    async beforeInitialize() {
       // Try to inject this hook just after the others hooks to skip the router processing.
       if (!_.get(strapi.config.hook.load, 'after')) {
         _.set(strapi.config.hook.load, 'after', []);
@@ -52,7 +52,7 @@ module.exports = strapi => {
       );
     },
 
-    initialize: function(cb) {
+    initialize() {
       const {
         typeDefs,
         resolvers,
@@ -63,7 +63,7 @@ module.exports = strapi => {
           'The GraphQL schema has not been generated because it is empty'
         );
 
-        return cb();
+        return;
       }
 
       const serverParams = {
@@ -81,6 +81,13 @@ module.exports = strapi => {
         validationRules: [depthLimit(strapi.plugins.graphql.config.depthLimit)],
         tracing: _.get(strapi.plugins.graphql, 'config.tracing', false),
         playground: false,
+        cors: false,
+        bodyParserConfig: true,
+        introspection: _.get(
+          strapi.plugins.graphql,
+          'config.introspection',
+          true
+        ),
       };
 
       // Disable GraphQL Playground in production environment.
@@ -90,9 +97,8 @@ module.exports = strapi => {
       ) {
         serverParams.playground = {
           endpoint: strapi.plugins.graphql.config.endpoint,
+          shareEnabled: strapi.plugins.graphql.config.shareEnabled,
         };
-
-        serverParams.introspection = true;
       }
 
       const server = new ApolloServer(serverParams);
@@ -101,8 +107,6 @@ module.exports = strapi => {
         app: strapi.app,
         path: strapi.plugins.graphql.config.endpoint,
       });
-
-      cb();
     },
   };
 };

@@ -10,12 +10,18 @@
 const _ = require('lodash');
 const uuid = require('uuid/v4');
 
-module.exports = async cb => {
+module.exports = async () => {
   if (!_.get(strapi.plugins['users-permissions'], 'config.jwtSecret')) {
     const jwtSecret = uuid();
     _.set(strapi.plugins['users-permissions'], 'config.jwtSecret', jwtSecret);
 
-    await strapi.fs.writePluginFile('users-permissions', 'config/jwt.json', JSON.stringify({ jwtSecret }, null, 2));
+    strapi.reload.isWatching = false;
+    await strapi.fs.writePluginFile(
+      'users-permissions',
+      'config/jwt.json',
+      JSON.stringify({ jwtSecret }, null, 2)
+    );
+    strapi.reload.isWatching = true;
   }
 
   const pluginStore = strapi.store({
@@ -31,7 +37,7 @@ module.exports = async cb => {
     },
     discord: {
       enabled: false,
-      icon: 'comments',
+      icon: 'discord',
       key: '',
       secret: '',
       callback: '/auth/discord/callback',
@@ -39,7 +45,7 @@ module.exports = async cb => {
     },
     facebook: {
       enabled: false,
-      icon: 'facebook-official',
+      icon: 'facebook-square',
       key: '',
       secret: '',
       callback: '/auth/facebook/callback',
@@ -76,6 +82,21 @@ module.exports = async cb => {
       secret: '',
       callback: '/auth/twitter/callback',
     },
+    instagram: {
+      enabled: false,
+      icon: 'instagram',
+      key: '',
+      secret: '',
+      callback: '/auth/instagram/callback',
+    },
+    vk: {
+      enabled: false,
+      icon: 'vk',
+      key: '',
+      secret: '',
+      callback: '/auth/vk/callback',
+      scope: ['email'],
+    },
   };
   const prevGrantConfig = (await pluginStore.get({ key: 'grant' })) || {};
   // store grant auth config to db
@@ -98,14 +119,14 @@ module.exports = async cb => {
     const value = {
       reset_password: {
         display: 'Email.template.reset_password',
-        icon: 'refresh',
+        icon: 'sync',
         options: {
           from: {
             name: 'Administration Panel',
             email: 'no-reply@strapi.io',
           },
           response_email: '',
-          object: '­Reset password',
+          object: 'Reset password',
           message: `<p>We heard that you lost your password. Sorry about that!</p>
 
 <p>But don’t worry! You can use the following link to reset your password:</p>
@@ -117,7 +138,7 @@ module.exports = async cb => {
       },
       email_confirmation: {
         display: 'Email.template.email_confirmation',
-        icon: 'check-square-o',
+        icon: 'check-square',
         options: {
           from: {
             name: 'Administration Panel',
@@ -144,14 +165,15 @@ module.exports = async cb => {
       unique_email: true,
       allow_register: true,
       email_confirmation: false,
-      email_confirmation_redirection: `http://${
-        strapi.config.currentEnvironment.server.host
-      }:${strapi.config.currentEnvironment.server.port}/admin`,
+      email_confirmation_redirection: `http://${strapi.config.currentEnvironment.server.host}:${strapi.config.currentEnvironment.server.port}/admin`,
+      email_reset_password: `http://${strapi.config.currentEnvironment.server.host}:${strapi.config.currentEnvironment.server.port}/admin`,
       default_role: 'authenticated',
     };
 
     await pluginStore.set({ key: 'advanced', value });
   }
 
-  strapi.plugins['users-permissions'].services.userspermissions.initialize(cb);
+  return strapi.plugins[
+    'users-permissions'
+  ].services.userspermissions.initialize();
 };

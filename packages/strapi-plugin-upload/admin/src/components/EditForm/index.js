@@ -11,15 +11,15 @@ import PropTypes from 'prop-types';
 // ./node_modules/strapi-helper-plugin/lib/src
 // or strapi/packages/strapi-helper-plugin/lib/src
 import { InputsIndex as Input } from 'strapi-helper-plugin';
-
-import styles from './styles.scss';
+import Separator from '../Separator';
+import Wrapper from './Wrapper';
 
 class EditForm extends React.Component {
   getProviderForm = () =>
     get(
       this.props.settings,
       ['providers', this.props.selectedProviderIndex, 'auth'],
-      {},
+      {}
     );
 
   generateSelectOptions = () =>
@@ -30,21 +30,22 @@ class EditForm extends React.Component {
           value: get(this.props.settings, ['providers', current, 'provider']),
         };
         acc.push(option);
+
         return acc;
       },
-      [],
+      []
     );
 
   render() {
     return (
-      <div className={styles.editForm}>
+      <Wrapper>
         <div className="row">
           <Input
             customBootstrapClass="col-md-6"
             inputDescription={{
               id: 'upload.EditForm.Input.select.inputDescription',
             }}
-            inputClassName={styles.inputStyle}
+            inputClassName="inputStyle"
             label={{ id: 'upload.EditForm.Input.select.label' }}
             name="provider"
             onChange={this.props.onChange}
@@ -54,7 +55,7 @@ class EditForm extends React.Component {
           />
         </div>
         {!isEmpty(this.getProviderForm()) && (
-          <div className={styles.subFormWrapper}>
+          <div className="subFormWrapper">
             <div className="row">
               {map(this.getProviderForm(), (value, key) => (
                 <Input
@@ -76,10 +77,10 @@ class EditForm extends React.Component {
             </div>
           </div>
         )}
-        <div className={styles.separator} />
+        <Separator style={{ marginBottom: 17 }} />
         <div className="row">
           <Input
-            inputClassName={styles.inputStyle}
+            inputClassName="inputStyle"
             label={{ id: 'upload.EditForm.Input.number.label' }}
             name="sizeLimit"
             onChange={this.props.onChange}
@@ -88,7 +89,7 @@ class EditForm extends React.Component {
             value={get(this.props.modifiedData, 'sizeLimit', 1) / 1000}
           />
         </div>
-        <div className={styles.separator} style={{ marginTop: '-4px' }} />
+        <Separator style={{ marginTop: '-4px' }} />
         <div className="row">
           <Input
             label={{ id: 'upload.EditForm.Input.toggle.label' }}
@@ -98,7 +99,7 @@ class EditForm extends React.Component {
             value={get(this.props.modifiedData, 'enabled', false)}
           />
         </div>
-      </div>
+      </Wrapper>
     );
   }
 }

@@ -5,9 +5,10 @@ const fse = require('fs-extra');
 const chalk = require('chalk');
 const execa = require('execa');
 const ora = require('ora');
+const _ = require('lodash');
 
 const stopProcess = require('./utils/stop-process');
-const { trackUsage } = require('./utils/usage');
+const { trackUsage, captureStderr } = require('./utils/usage');
 const packageJSON = require('./resources/json/package.json');
 const databaseJSON = require('./resources/json/database.json.js');
 
@@ -42,7 +43,7 @@ module.exports = async function createProject(
         strapiDependencies: scope.strapiDependencies,
         additionalsDependencies: dependencies,
         strapiVersion: scope.strapiVersion,
-        projectName: scope.name,
+        projectName: _.kebabCase(scope.name),
         uuid: scope.uuid,
       }),
       {
@@ -81,12 +82,14 @@ module.exports = async function createProject(
   };
 
   try {
-    const runner = runInstall(scope);
+    if (scope.installDependencies !== false) {
+      const runner = runInstall(scope);
 
-    runner.stdout.on('data', logInstall);
-    runner.stderr.on('data', logInstall);
+      runner.stdout.on('data', logInstall);
+      runner.stderr.on('data', logInstall);
 
-    await runner;
+      await runner;
+    }
 
     loader.stop();
     console.log(`Dependencies installed ${chalk.green('successfully')}.`);
@@ -95,14 +98,34 @@ module.exports = async function createProject(
     await trackUsage({
       event: 'didNotInstallProjectDependencies',
       scope,
-      error,
+      error: error.stderr.slice(-1024),
     });
 
-    stopProcess(
-      `${chalk.red(
-        'Error'
-      )} while installing dependencies:\n${error.stderr.trim()}`
+    console.error(`${chalk.red('Error')} while installing dependencies:`);
+    console.error(error.stderr);
+
+    await captureStderr('didNotInstallProjectDependencies', error);
+
+    console.log(chalk.black.bgWhite(' Keep trying!             '));
+    console.log();
+    console.log(
+      chalk.bold(
+        'Oh, it seems that you encountered errors while installing dependencies in your project.'
+      )
     );
+    console.log(`Don't give up, your project was created correctly.`);
+    console.log(
+      `Fix the issues mentionned in the installation errors and try to run the following command:`
+    );
+    console.log();
+    console.log(
+      `cd ${chalk.green(rootPath)} && ${chalk.cyan(
+        scope.useYarn ? 'yarn' : 'npm'
+      )} install`
+    );
+    console.log();
+
+    stopProcess();
   }
 
   await trackUsage({ event: 'didCreateProject', scope });

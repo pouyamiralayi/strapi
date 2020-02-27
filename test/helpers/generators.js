@@ -1,163 +1,111 @@
 module.exports = {
   article: {
-    attributes: [
-      {
-        name: 'title',
-        params: {
-          appearance: {
-            WYSIWYG: false,
-          },
-          multiple: false,
-          type: 'string',
-        },
+    attributes: {
+      title: {
+        type: 'string',
       },
-      {
-        name: 'content',
-        params: {
-          appearance: {
-            WYSIWYG: true,
-          },
-          multiple: false,
-          type: 'text',
-        },
+      date: {
+        type: 'date',
       },
-      {
-        name: 'author',
-        params: {
-          nature: 'manyToOne',
-          target: 'user',
-          pluginValue: 'users-permissions',
-          key: 'articles',
-          plugin: true,
-        },
+      jsonField: {
+        type: 'json',
       },
-    ],
+      content: {
+        type: 'richtext',
+      },
+      author: {
+        nature: 'manyToOne',
+        target: 'plugins::users-permissions.user',
+        targetAttribute: 'articles',
+      },
+    },
     connection: 'default',
     name: 'article',
     description: '',
     collectionName: '',
   },
   tag: {
-    attributes: [
-      {
-        name: 'name',
-        params: {
-          appearance: {
-            WYSIWYG: false,
-          },
-          multiple: false,
-          type: 'string',
-        },
+    attributes: {
+      name: {
+        type: 'string',
       },
-      {
-        name: 'articles',
-        params: {
-          dominant: true,
-          nature: 'manyToMany',
-          target: 'article',
-          key: 'tags',
-        },
+      articles: {
+        dominant: true,
+        nature: 'manyToMany',
+        target: 'application::article.article',
+        targetAttribute: 'tags',
       },
-    ],
+    },
     connection: 'default',
     name: 'tag',
     description: '',
     collectionName: '',
   },
   category: {
-    attributes: [
-      {
-        name: 'name',
-        params: {
-          appearance: {
-            WYSIWYG: false,
-          },
-          multiple: false,
-          type: 'string',
-        },
+    attributes: {
+      name: {
+        type: 'string',
       },
-      {
-        name: 'articles',
-        params: {
-          nature: 'oneToMany',
-          target: 'article',
-          key: 'category',
-        },
+      articles: {
+        nature: 'oneToMany',
+        target: 'application::article.article',
+        targetAttribute: 'category',
       },
-    ],
+    },
     connection: 'default',
     name: 'category',
     description: '',
     collectionName: '',
   },
   reference: {
-    attributes: [
-      {
-        name: 'name',
-        params: {
-          appearance: {
-            WYSIWYG: false,
-          },
-          multiple: false,
-          type: 'string',
-        },
+    attributes: {
+      name: {
+        type: 'string',
       },
-      {
-        name: 'article',
-        params: {
-          target: 'article',
-          key: 'reference',
-          nature: 'oneToOne',
-        },
+      article: {
+        target: 'application::article.article',
+        targetAttribute: 'reference',
+        nature: 'oneToOne',
       },
-      {
-        name: 'tag',
-        params: {
-          nature: 'oneWay',
-          target: 'tag',
-        },
+      tag: {
+        nature: 'oneWay',
+        target: 'application::tag.tag',
       },
-    ],
+    },
     connection: 'default',
     name: 'reference',
     description: '',
     collectionName: '',
   },
   product: {
-    attributes: [
-      {
-        name: 'name',
-        params: {
-          appearance: {
-            WYSIWYG: false,
-          },
-          multiple: false,
-          type: 'string',
-        },
+    attributes: {
+      name: {
+        type: 'string',
       },
-      {
-        name: 'description',
-        params: {
-          appearance: {
-            WYSIWYG: true,
-          },
-          multiple: false,
-          type: 'text',
-        },
+      description: {
+        type: 'richtext',
       },
-      {
-        name: 'published',
-        params: {
-          appearance: {
-            WYSIWYG: false,
-          },
-          multiple: false,
-          type: 'boolean',
-        },
+      published: {
+        type: 'boolean',
       },
-    ],
+    },
     connection: 'default',
     name: 'product',
+    description: '',
+    collectionName: '',
+  },
+  articlewithtag: {
+    attributes: {
+      title: {
+        type: 'string',
+      },
+      tags: {
+        nature: 'manyWay',
+        target: 'application::tag.tag',
+      },
+    },
+    connection: 'default',
+    name: 'articlewithtag',
     description: '',
     collectionName: '',
   },

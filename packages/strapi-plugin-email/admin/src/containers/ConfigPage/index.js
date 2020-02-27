@@ -9,11 +9,12 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { bindActionCreators, compose } from 'redux';
 import { findIndex, get, isEmpty } from 'lodash';
+import { Header } from '@buffetjs/custom';
 
 // You can find these components in either
 // ./node_modules/strapi-helper-plugin/lib/src
 // or strapi/packages/strapi-helper-plugin/lib/src
-import { ContainerFluid, HeaderNav, PluginHeader } from 'strapi-helper-plugin';
+import { ContainerFluid, HeaderNav, GlobalContext } from 'strapi-helper-plugin';
 
 import pluginId from '../../pluginId';
 
@@ -27,6 +28,23 @@ import saga from './saga';
 import selectConfigPage from './selectors';
 
 class ConfigPage extends React.Component {
+  pluginHeaderActions = [
+    {
+      color: 'cancel',
+      label: this.context.formatMessage({ id: 'app.components.Button.cancel' }),
+      onClick: this.props.onCancel,
+      type: 'button',
+      key: 'button-cancel',
+    },
+    {
+      color: 'success',
+      label: this.context.formatMessage({ id: 'app.components.Button.save' }),
+      onClick: this.handleSubmit,
+      type: 'submit',
+      key: 'button-submit',
+    },
+  ];
+
   componentDidMount() {
     this.getSettings(this.props);
   }
@@ -40,7 +58,7 @@ class ConfigPage extends React.Component {
     // Redirect the user to the email list after modifying is provider
     if (prevProps.submitSuccess !== this.props.submitSuccess) {
       this.props.history.push(
-        `/plugins/email/configurations/${this.props.match.params.env}`,
+        `/plugins/email/configurations/${this.props.match.params.env}`
       );
     }
   }
@@ -72,6 +90,7 @@ class ConfigPage extends React.Component {
           to: `/plugins/email/configurations/${current.name}`,
         });
         acc.push(link);
+
         return acc;
       }, [])
       .sort(link => link.name === 'production');
@@ -85,8 +104,8 @@ class ConfigPage extends React.Component {
       get(
         this.props.settings,
         ['providers', this.getSelectedProviderIndex(), 'auth'],
-        {},
-      ),
+        {}
+      )
     ).reduce((acc, current) => {
       if (isEmpty(get(this.props.modifiedData, current, ''))) {
         acc.push({
@@ -94,6 +113,7 @@ class ConfigPage extends React.Component {
           errors: [{ id: 'components.Input.error.validation.required' }],
         });
       }
+
       return acc;
     }, []);
 
@@ -104,32 +124,26 @@ class ConfigPage extends React.Component {
     return this.props.submit();
   };
 
-  pluginHeaderActions = [
-    {
-      kind: 'secondary',
-      label: 'app.components.Button.cancel',
-      onClick: this.props.onCancel,
-      type: 'button',
-    },
-    {
-      kind: 'primary',
-      label: 'app.components.Button.save',
-      onClick: this.handleSubmit,
-      type: 'submit',
-    },
-  ];
+  static contextType = GlobalContext;
 
   render() {
+    const { formatMessage } = this.context;
+
     return (
       <div>
         <form onSubmit={this.handleSubmit}>
           <ContainerFluid>
-            <PluginHeader
+            <Header
               actions={this.pluginHeaderActions}
-              description={{ id: 'email.ConfigPage.description' }}
-              title={{ id: 'email.ConfigPage.title' }}
+              content={formatMessage({
+                id: 'email.ConfigPage.description',
+              })}
+              title={{ label: formatMessage({ id: 'email.ConfigPage.title' }) }}
             />
-            <HeaderNav links={this.generateLinks()} />
+            <HeaderNav
+              links={this.generateLinks()}
+              style={{ marginTop: '4.6rem' }}
+            />
             <EditForm
               didCheckErrors={this.props.didCheckErrors}
               formErrors={this.props.formErrors}
@@ -144,8 +158,6 @@ class ConfigPage extends React.Component {
     );
   }
 }
-
-ConfigPage.contextTypes = {};
 
 ConfigPage.defaultProps = {
   appEnvironments: [],
@@ -180,7 +192,7 @@ function mapDispatchToProps(dispatch) {
       setErrors,
       submit,
     },
-    dispatch,
+    dispatch
   );
 }
 
@@ -188,7 +200,7 @@ const mapStateToProps = selectConfigPage();
 
 const withConnect = connect(
   mapStateToProps,
-  mapDispatchToProps,
+  mapDispatchToProps
 );
 
 const withReducer = strapi.injectReducer({
@@ -201,5 +213,5 @@ const withSaga = strapi.injectSaga({ key: 'configPage', saga, pluginId });
 export default compose(
   withReducer,
   withSaga,
-  withConnect,
+  withConnect
 )(ConfigPage);

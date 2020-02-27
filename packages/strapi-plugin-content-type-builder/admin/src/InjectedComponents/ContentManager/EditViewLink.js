@@ -6,28 +6,36 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { LiLink } from 'strapi-helper-plugin';
+import { LiLink, useGlobalContext } from 'strapi-helper-plugin';
 
 // Create link from content-type-builder to content-manager
 function EditViewLink(props) {
+  const { currentEnvironment, emitEvent } = useGlobalContext();
   // Retrieve URL from props
-  const base = `${props.getContentTypeBuilderBaseUrl()}${props.getModelName()}`;
-  const url =
-    props.getSource() === 'users-permissions'
-      ? `${base}&source=${props.getSource()}`
-      : base;
+  const url = `/plugins/content-type-builder/content-types/${props.getModelName()}`;
 
-  if (props.getSource() === 'admin') {
+  if (currentEnvironment !== 'development') {
     return null;
   }
 
-  return <LiLink {...props} url={url} />;
+  if (props.getModelName() === 'strapi::administrator') {
+    return null;
+  }
+
+  return (
+    <LiLink
+      {...props}
+      url={url}
+      onClick={() => {
+        emitEvent('willEditEditLayout');
+      }}
+    />
+  );
 }
 
 EditViewLink.propTypes = {
-  getContentTypeBuilderBaseUrl: PropTypes.func.isRequired,
+  currentEnvironment: PropTypes.string.isRequired,
   getModelName: PropTypes.func.isRequired,
-  getSource: PropTypes.func.isRequired,
 };
 
 export default EditViewLink;

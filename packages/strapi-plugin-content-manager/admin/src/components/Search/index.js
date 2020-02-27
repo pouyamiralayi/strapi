@@ -1,31 +1,35 @@
 /*
-*
-* Search
-*
-*/
+ *
+ * Search
+ *
+ */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { isEmpty, upperFirst } from 'lodash';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
-
-import Logo from '../../assets/images/icon_filter_blue.svg';
-import styles from './styles.scss';
+import Cross from '../../icons/Cross';
+import Filter from '../../icons/Filter';
+import SearchIcon from '../../icons/Search';
+import { Wrapper, Infos, Clear } from './components';
 
 const WAIT = 400;
 
 class Search extends React.Component {
   state = { value: this.props.initValue };
 
+  timer = null;
+
   componentDidUpdate(prevProps) {
     const { model, value } = this.props;
 
-    if (prevProps.model !== model || !isEmpty(prevProps.value) && isEmpty(value)) {
+    if (
+      prevProps.model !== model ||
+      (!isEmpty(prevProps.value) && isEmpty(value))
+    ) {
       this.resetState();
     }
   }
-
-  timer = null;
 
   resetState = () => this.setState({ value: '' });
 
@@ -33,31 +37,33 @@ class Search extends React.Component {
     clearTimeout(this.timer);
     this.setState({ value: target.value });
     this.timer = setTimeout(() => this.triggerChange(target.value), WAIT);
-  }
+  };
 
   handleClick = () => {
     this.setState({ value: '' });
     this.triggerChange('');
-  }
+  };
 
-  triggerChange = (value) => (
+  triggerChange = value =>
     this.props.changeParams({
       target: {
-        name: 'params._q',
+        name: '_q',
         value,
       },
-    })
-  );
+    });
 
   render() {
     const { model } = this.props;
     const { value } = this.state;
 
     return (
-      <div className={styles.search}>
+      <Wrapper>
+        <div>
+          <SearchIcon />
+        </div>
         <div>
           <FormattedMessage id="content-manager.components.Search.placeholder">
-            {(message) => (
+            {message => (
               <input
                 onChange={this.handleChange}
                 placeholder={message}
@@ -66,13 +72,17 @@ class Search extends React.Component {
               />
             )}
           </FormattedMessage>
-          {value !== '' && <div className={styles.clearable} onClick={this.handleClick} />}
+          {value !== '' && (
+            <Clear onClick={this.handleClick}>
+              <Cross />
+            </Clear>
+          )}
         </div>
-        <div className={styles.searchLabel}>
-          <img src={Logo} alt="filter_logo" />
+        <Infos>
+          <Filter />
           {upperFirst(model)}
-        </div>
-      </div>
+        </Infos>
+      </Wrapper>
     );
   }
 }
@@ -90,4 +100,4 @@ Search.propTypes = {
   value: PropTypes.string,
 };
 
-export default Search;
+export default memo(Search);

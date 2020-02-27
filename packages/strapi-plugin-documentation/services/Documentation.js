@@ -381,8 +381,7 @@ module.exports = {
       (acc, curr) => {
         const attribute = attributes[curr];
         const isField =
-          !attribute.hasOwnProperty('model') &&
-          !attribute.hasOwnProperty('collection');
+          !_.has(attribute, 'model') && !_.has(attribute, 'collection');
 
         if (attribute.required) {
           acc.required.push(curr);
@@ -472,7 +471,7 @@ module.exports = {
           current.handler,
           key,
           endPoint.split('/')[1],
-          current.config.description
+          _.get(current, 'config.description')
         ),
         responses: this.generateResponses(verb, current, key),
         summary: '',
@@ -656,6 +655,61 @@ module.exports = {
             default:
               acc.properties[current] = associationSchema;
           }
+        } else if (type === 'component') {
+          const { repeatable, component, min, max } = attribute;
+
+          const cmp = this.generateMainComponent(
+            strapi.components[component].attributes,
+            strapi.components[component].associations
+          );
+
+          if (repeatable) {
+            acc.properties[current] = {
+              type: 'array',
+              items: {
+                type: 'object',
+                ...cmp,
+              },
+              minItems: min,
+              maxItems: max,
+            };
+          } else {
+            acc.properties[current] = {
+              type: 'object',
+              ...cmp,
+              description,
+            };
+          }
+        } else if (type === 'dynamiczone') {
+          const { components, min, max } = attribute;
+
+          const cmps = components.map(component => {
+            const schema = this.generateMainComponent(
+              strapi.components[component].attributes,
+              strapi.components[component].associations
+            );
+
+            return _.merge(
+              {
+                properties: {
+                  __component: {
+                    type: 'string',
+                    enum: components,
+                  },
+                },
+              },
+              schema
+            );
+          });
+
+          acc.properties[current] = {
+            type: 'array',
+            items: {
+              oneOf: cmps,
+            },
+            minItems: min,
+            maxItems: max,
+          };
         } else {
           acc.properties[current] = {
             type,
@@ -1525,8 +1579,7 @@ module.exports = {
       .map(attr => {
         const attribute = modelAttributes[attr];
         const isField =
-          !attribute.hasOwnProperty('model') &&
-          !attribute.hasOwnProperty('collection');
+          !_.has(attribute, 'model') && !_.has(attribute, 'collection');
 
         if (!isField) {
           const name = attribute.model || attribute.collection;
@@ -1563,6 +1616,7 @@ module.exports = {
       case 'text':
       case 'enumeration':
       case 'date':
+      case 'richtext':
         return 'string';
       case 'float':
       case 'decimal':
@@ -1572,6 +1626,8 @@ module.exports = {
       case 'biginteger':
       case 'long':
         return 'integer';
+      case 'json':
+        return 'object';
       default:
         return type;
     }
@@ -1730,7 +1786,7 @@ module.exports = {
   mergeComponents: (initObj, srcObj) => {
     const cleanedObj = Object.keys(_.get(initObj, 'schemas', {})).reduce(
       (acc, current) => {
-        const targetObj = _.get(srcObj, ['schemas'], {}).hasOwnProperty(current)
+        const targetObj = _.has(_.get(srcObj, ['schemas'], {}), current)
           ? srcObj
           : initObj;
 
@@ -1750,7 +1806,7 @@ module.exports = {
 
   mergePaths: function(initObj, srcObj) {
     return Object.keys(initObj.paths).reduce((acc, current) => {
-      if (_.get(srcObj, ['paths'], {}).hasOwnProperty(current)) {
+      if (_.has(_.get(srcObj, ['paths'], {}), current)) {
         const verbs = Object.keys(initObj.paths[current]).reduce(
           (acc1, curr) => {
             const verb = this.mergeVerbObject(
@@ -1875,7 +1931,7 @@ module.exports = {
             const overrideDocumentationPath = isPlugin
               ? path.resolve(
                   strapi.config.appPath,
-                  'plugins',
+                  'extensions',
                   current,
                   'documentation',
                   version,

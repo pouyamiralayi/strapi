@@ -6,48 +6,37 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import cn from 'classnames';
 import { trim } from 'lodash';
 
 import ext from './extensions.json';
-
-import styles from './styles.scss';
+import Wrapper from './Wrapper';
 
 function FileIcon({ fileType }) {
   const iconType = (() => {
     switch (true) {
       case ext.archive.includes(trim(fileType, '.')):
-        return 'file-archive-o';
+        return 'file-archive';
       case ext.code.includes(trim(fileType, '.')):
-        return 'file-code-o';
+        return 'file-code';
       case ext.img.includes(trim(fileType, '.')):
-        return 'file-image-o';
+        return 'file-image';
       case ext.pdf.includes(trim(fileType, '.')):
-        return 'file-pdf-o';
+        return 'file-pdf';
       case ext.powerpoint.includes(trim(fileType, '.')):
-        return 'file-powerpoint-o';
+        return 'file-powerpoint';
       case ext.video.includes(trim(fileType, '.')):
-        return 'file-video-o';
+        return 'file-video';
       case ext.word.includes(trim(fileType, '.')):
-        return 'file-word-o';
+        return 'file-word';
       default:
         return 'file';
     }
   })();
 
   return (
-    <div
-      className={(cn(
-        styles.fileIconContainer,
-        iconType === 'file-pdf-o' && styles.pdf,
-        iconType === 'file-archive-o' && styles.zip,
-        iconType === 'file-image-o' && styles.image,
-        iconType === 'file-video-o' && styles.video,
-        iconType === 'file-code-o' && styles.code,
-      ))}
-    >
+    <Wrapper type={iconType}>
       <i className={`fa fa-${iconType}`} />
-    </div>
+    </Wrapper>
   );
 }
 

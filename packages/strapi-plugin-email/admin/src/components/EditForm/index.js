@@ -8,15 +8,14 @@ import React from 'react';
 import { findIndex, get, isEmpty, map } from 'lodash';
 import PropTypes from 'prop-types';
 import { InputsIndex as Input } from 'strapi-helper-plugin';
-
-import styles from './styles.scss';
+import Wrapper from './Wrapper';
 
 class EditForm extends React.Component {
   getProviderForm = () =>
     get(
       this.props.settings,
       ['providers', this.props.selectedProviderIndex, 'auth'],
-      {},
+      {}
     );
 
   generateSelectOptions = () =>
@@ -27,21 +26,23 @@ class EditForm extends React.Component {
           value: get(this.props.settings, ['providers', current, 'provider']),
         };
         acc.push(option);
+
         return acc;
       },
-      [],
+      []
     );
 
   render() {
     return (
-      <div className={styles.editForm}>
+      <Wrapper>
         <div className="row">
           <Input
             customBootstrapClass="col-md-6"
             inputDescription={{
               id: 'email.EditForm.Input.select.inputDescription',
             }}
-            inputClassName={styles.inputStyle}
+            className="input-wrapper"
+            inputClassName="inputStyle"
             label={{ id: 'email.EditForm.Input.select.label' }}
             name="provider"
             onChange={this.props.onChange}
@@ -51,7 +52,7 @@ class EditForm extends React.Component {
           />
         </div>
         {!isEmpty(this.getProviderForm()) && (
-          <div className={styles.subFormWrapper}>
+          <div className="subFormWrapper">
             <div className="row">
               {map(this.getProviderForm(), (value, key) => (
                 <Input
@@ -73,7 +74,7 @@ class EditForm extends React.Component {
             </div>
           </div>
         )}
-      </div>
+      </Wrapper>
     );
   }
 }

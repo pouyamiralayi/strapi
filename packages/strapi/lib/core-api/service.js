@@ -13,7 +13,7 @@ module.exports = ({ model, strapi }) => {
      * @return {Promise}
      */
     find(params, populate) {
-      return strapi.query(model).find(params, populate);
+      return strapi.entityService.find({ params, populate }, { model });
     },
 
     /**
@@ -23,7 +23,7 @@ module.exports = ({ model, strapi }) => {
      */
 
     findOne(params, populate) {
-      return strapi.query(model).findOne(params, populate);
+      return strapi.entityService.findOne({ params, populate }, { model });
     },
 
     /**
@@ -33,7 +33,7 @@ module.exports = ({ model, strapi }) => {
      */
 
     count(params) {
-      return strapi.query(model).count(params);
+      return strapi.entityService.count({ params }, { model });
     },
 
     /**
@@ -42,8 +42,8 @@ module.exports = ({ model, strapi }) => {
      * @return {Promise}
      */
 
-    create(values) {
-      return strapi.query(model).create(values);
+    create(data, { files } = {}) {
+      return strapi.entityService.create({ data, files }, { model });
     },
 
     /**
@@ -52,8 +52,8 @@ module.exports = ({ model, strapi }) => {
      * @return {Promise}
      */
 
-    update(params, values) {
-      return strapi.query(model).update(params, values);
+    update(params, data, { files } = {}) {
+      return strapi.entityService.update({ params, data, files }, { model });
     },
 
     /**
@@ -63,7 +63,7 @@ module.exports = ({ model, strapi }) => {
      */
 
     delete(params) {
-      return strapi.query(model).delete(params);
+      return strapi.entityService.delete({ params }, { model });
     },
 
     /**
@@ -73,7 +73,7 @@ module.exports = ({ model, strapi }) => {
      */
 
     search(params) {
-      return strapi.query(model).search(params);
+      return strapi.entityService.search({ params }, { model });
     },
 
     /**
@@ -82,7 +82,7 @@ module.exports = ({ model, strapi }) => {
      * @return {Promise}
      */
     countSearch(params) {
-      return strapi.query(model).countSearch(params);
+      return strapi.entityService.countSearch({ params }, { model });
     },
   };
 };

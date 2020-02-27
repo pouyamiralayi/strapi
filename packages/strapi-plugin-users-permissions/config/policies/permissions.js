@@ -5,24 +5,25 @@ module.exports = async (ctx, next) => {
 
   if (ctx.request && ctx.request.header && ctx.request.header.authorization) {
     try {
-      const { _id, id, isAdmin = false } = await strapi.plugins[
+      const { id, isAdmin = false } = await strapi.plugins[
         'users-permissions'
       ].services.jwt.getToken(ctx);
 
-      if ((id || _id) === undefined) {
+      if (id === undefined) {
         throw new Error('Invalid token: Token did not contain required fields');
       }
 
       if (isAdmin) {
-        ctx.state.admin = await strapi.plugins['users-permissions']
-          .queries('administrator', 'admin')
-          .findOne({ _id, id });
+        ctx.state.admin = await strapi
+          .query('administrator', 'admin')
+          .findOne({ id }, []);
       } else {
-        ctx.state.user = await strapi.plugins['users-permissions']
-          .queries('user', 'users-permissions')
-          .findOne({ _id, id });
+        ctx.state.user = await strapi
+          .query('user', 'users-permissions')
+          .findOne({ id }, ['role']);
       }
     } catch (err) {
+      strapi.log.error(err);
       return handleErrors(ctx, err, 'unauthorized');
     }
 
@@ -77,17 +78,17 @@ module.exports = async (ctx, next) => {
 
   // Retrieve `public` role.
   if (!role) {
-    role = await strapi.plugins['users-permissions']
-      .queries('role', 'users-permissions')
+    role = await strapi
+      .query('role', 'users-permissions')
       .findOne({ type: 'public' }, []);
   }
 
   const route = ctx.request.route;
-  const permission = await strapi.plugins['users-permissions']
-    .queries('permission', 'users-permissions')
+  const permission = await strapi
+    .query('permission', 'users-permissions')
     .findOne(
       {
-        role: role._id || role.id,
+        role: role.id,
         type: route.plugin || 'application',
         controller: route.controller,
         action: route.action,

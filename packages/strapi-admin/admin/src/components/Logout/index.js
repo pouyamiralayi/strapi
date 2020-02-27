@@ -5,10 +5,11 @@
  */
 
 /* eslint-disable */
-import React from 'react';
+import React, { useState } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { withRouter } from 'react-router-dom';
 import { get } from 'lodash';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   ButtonDropdown,
   DropdownItem,
@@ -16,63 +17,52 @@ import {
   DropdownToggle,
 } from 'reactstrap';
 import { auth } from 'strapi-helper-plugin';
+import Wrapper from './components';
 
-import styles from './styles.scss';
+const Logout = ({ history: { push } }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const toggle = () => setIsOpen(prev => !prev);
+  const handleGoTo = () => {
+    const id = get(auth.getUserInfo(), 'id');
 
-class Logout extends React.Component {
-  // eslint-disable-line react/prefer-stateless-function
-  state = { isOpen: false };
-
-  handleGoTo = () => {
-    const id = get(auth.getUserInfo(), 'id') || get(auth.getUserInfo(), '_id');
-    this.props.history.push({
-      pathname: `/plugins/content-manager/administrator/${id}`,
+    push({
+      pathname: `/plugins/content-manager/strapi::administrator/${id}`,
       search:
-        '?redirectUrl=/plugins/content-manager/administrator/?page=0&limit=0&sort=id&source=admin',
+        '?redirectUrl=/plugins/content-manager/strapi::administrator/&_page=0&_limit=0&_sort=id',
     });
   };
-
-  handleGoToAdministrator = () => {
-    this.props.history.push({
-      pathname: '/plugins/content-manager/administrator',
-      search: '?source=admin',
+  const handleGoToAdministrator = () => {
+    push({
+      pathname: '/plugins/content-manager/strapi::administrator',
     });
   };
-
-  handleLogout = () => {
+  const handleLogout = () => {
     auth.clearAppStorage();
-    this.props.history.push('/plugins/users-permissions/auth/login');
+    push('/auth/login');
   };
 
-  toggle = () => this.setState({ isOpen: !this.state.isOpen });
-
-  render() {
-    return (
-      <div className={styles.logout}>
-        <ButtonDropdown isOpen={this.state.isOpen} toggle={this.toggle}>
-          <DropdownToggle>
-            {get(auth.getUserInfo(), 'username')}
-            <i className="fa fa-caret-down" alt={`${this.state.isOpen}`} />
-          </DropdownToggle>
-          <DropdownMenu className={styles.dropDownContent}>
-            <DropdownItem onClick={this.handleGoTo} className={styles.item}>
-              <FormattedMessage id="app.components.Logout.profile" />
-            </DropdownItem>
-            <DropdownItem
-              onClick={this.handleGoToAdministrator}
-              className={styles.item}
-            >
-              <FormattedMessage id="app.components.Logout.admin" />
-            </DropdownItem>
-            <DropdownItem onClick={this.handleLogout}>
-              <FormattedMessage id="app.components.Logout.logout" />
-              <i className="fa fa-sign-out" />
-            </DropdownItem>
-          </DropdownMenu>
-        </ButtonDropdown>
-      </div>
-    );
-  }
-}
+  return (
+    <Wrapper>
+      <ButtonDropdown isOpen={isOpen} toggle={toggle}>
+        <DropdownToggle>
+          {get(auth.getUserInfo(), 'username')}
+          <FontAwesomeIcon icon="caret-down" />
+        </DropdownToggle>
+        <DropdownMenu className="dropDownContent">
+          <DropdownItem onClick={handleGoTo} className="item">
+            <FormattedMessage id="app.components.Logout.profile" />
+          </DropdownItem>
+          <DropdownItem onClick={handleGoToAdministrator} className="item">
+            <FormattedMessage id="app.components.Logout.admin" />
+          </DropdownItem>
+          <DropdownItem onClick={handleLogout}>
+            <FormattedMessage id="app.components.Logout.logout" />
+            <FontAwesomeIcon icon="sign-out-alt" />
+          </DropdownItem>
+        </DropdownMenu>
+      </ButtonDropdown>
+    </Wrapper>
+  );
+};
 
 export default withRouter(Logout);

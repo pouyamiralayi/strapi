@@ -17,9 +17,8 @@ import {
   CharacterMetadata,
 } from 'draft-js';
 import { List, OrderedSet, Repeat, fromJS } from 'immutable';
-import cn from 'classnames';
 import { isEmpty, toArray } from 'lodash';
-
+import WysiwygContext from '../../contexts/Wysiwyg';
 import WysiwygEditor from '../WysiwygEditor';
 import converter from './converter';
 import {
@@ -28,23 +27,25 @@ import {
   findImageEntities,
   findVideoEntities,
 } from './strategies';
-
+import PreviewWysiwygWrapper from './PreviewWysiwygWrapper';
 import Image from './image';
 import Link from './link';
 import Video from './video';
 
-import styles from './componentsStyles.scss';
 /* eslint-disable react/no-unused-state */
+/* eslint-disable no-new */
+/* eslint-disable consistent-return */
+/* eslint-disable react/sort-comp */
 function getBlockStyle(block) {
   switch (block.getType()) {
     case 'blockquote':
-      return styles.editorBlockquote;
+      return 'editorBlockquote';
     case 'code-block':
-      return styles.editorCodeBlock;
+      return 'editorCodeBlock';
     case 'unstyled':
-      return styles.editorParagraph;
+      return 'editorParagraph';
     case 'unordered-list-item':
-      return styles.unorderedList;
+      return 'unorderedList';
     case 'ordered-list-item':
     case 'header-one':
     case 'header-two':
@@ -82,7 +83,8 @@ const getBlockSpecForElement = aElement => ({
   aInnerHTML: aElement.innerHTML,
 });
 
-const elementToBlockSpecElement = element => wrapBlockSpec(getBlockSpecForElement(element));
+const elementToBlockSpecElement = element =>
+  wrapBlockSpec(getBlockSpecForElement(element));
 
 const wrapBlockSpec = blockSpec => {
   if (blockSpec == null) {
@@ -92,6 +94,7 @@ const wrapBlockSpec = blockSpec => {
   // stringify meta data and insert it as text content of temp HTML element. We will later extract
   // and parse it.
   tempEl.innerText = JSON.stringify(blockSpec);
+
   return tempEl;
 };
 
@@ -100,10 +103,12 @@ const replaceElement = (oldEl, newEl) => {
     return;
   }
   const parentNode = oldEl.parentNode;
+
   return parentNode.replaceChild(newEl, oldEl);
 };
 
-const aReplacer = aElement => replaceElement(aElement, elementToBlockSpecElement(aElement));
+const aReplacer = aElement =>
+  replaceElement(aElement, elementToBlockSpecElement(aElement));
 
 const createContentBlock = (blockData = {}) => {
   const { key, type, text, data, inlineStyles, entityData } = blockData;
@@ -120,6 +125,7 @@ const createContentBlock = (blockData = {}) => {
 
   if (inlineStyles || entityData) {
     let entityKey;
+
     if (entityData) {
       const { type, mutability, data } = entityData;
       entityKey = Entity.create(type, mutability, data);
@@ -129,15 +135,18 @@ const createContentBlock = (blockData = {}) => {
     const style = OrderedSet(inlineStyles || []);
     const charData = CharacterMetadata.applyEntity(
       CharacterMetadata.create({ style, entityKey }),
-      entityKey,
+      entityKey
     );
     blockSpec.characterList = List(Repeat(charData, text.length));
   }
+
   return new ContentBlock(blockSpec);
 };
 
 class PreviewWysiwyg extends React.PureComponent {
   state = { editorState: EditorState.createEmpty(), isMounted: false };
+
+  static contextType = WysiwygContext;
 
   componentDidMount() {
     const { data } = this.props;
@@ -170,19 +179,14 @@ class PreviewWysiwyg extends React.PureComponent {
     this.setState({ isMounted: false });
   }
 
-  getClassName = () => {
-    if (this.context.isFullscreen) {
-      return cn(styles.editor, styles.editorFullScreen, styles.fullscreenPreviewEditor);
-    }
-
-    return styles.editor;
-  };
-
   previewHTML = rawContent => {
     const initHtml = isEmpty(rawContent) ? '<p></p>' : rawContent;
-    const html = new DOMParser().parseFromString(converter.makeHtml(initHtml), 'text/html');
+    const html = new DOMParser().parseFromString(
+      converter.makeHtml(initHtml),
+      'text/html'
+    );
     toArray(html.getElementsByTagName('a')) // Retrieve all the links <a> tags
-      .filter((value) => value.getElementsByTagName('img').length > 0) // Filter by checking if they have any <img> children
+      .filter(value => value.getElementsByTagName('img').length > 0) // Filter by checking if they have any <img> children
       .forEach(aReplacer); // Change those links into <blockquote> elements so we can set some metacharacters with the img content
 
     // TODO:
@@ -207,7 +211,7 @@ class PreviewWysiwyg extends React.PureComponent {
 
             const blockSpec = Object.assign(
               { type: 'atomic', text: ' ', key: block.getKey() },
-              { entityData },
+              { entityData }
             );
             const atomicBlock = createContentBlock(blockSpec); // Create an atomic block so we can identify it easily
 
@@ -222,7 +226,9 @@ class PreviewWysiwyg extends React.PureComponent {
 
       const contentState = ContentState.createFromBlockArray(blocksFromHTML);
 
-      return this.setState({ editorState: EditorState.createWithContent(contentState, decorator) });
+      return this.setState({
+        editorState: EditorState.createWithContent(contentState, decorator),
+      });
     }
 
     return this.setState({ editorState: EditorState.createEmpty() });
@@ -230,25 +236,25 @@ class PreviewWysiwyg extends React.PureComponent {
 
   render() {
     const { placeholder } = this.context;
-    // this.previewHTML2(this.props.data);
+
     return (
-      <div className={this.getClassName()}>
+      <PreviewWysiwygWrapper isFullscreen={this.context.isFullscreen}>
         <WysiwygEditor
           blockStyleFn={getBlockStyle}
           editorState={this.state.editorState}
           onChange={() => {}}
           placeholder={placeholder}
         />
-        <input className={styles.editorInput} value="" onChange={() => {}} tabIndex="-1" />
-      </div>
+        <input
+          className="editorInput"
+          value=""
+          onChange={() => {}}
+          tabIndex="-1"
+        />
+      </PreviewWysiwygWrapper>
     );
   }
 }
-
-PreviewWysiwyg.contextTypes = {
-  isFullscreen: PropTypes.bool,
-  placeholder: PropTypes.string,
-};
 
 PreviewWysiwyg.defaultProps = {
   data: '',
